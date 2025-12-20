@@ -4,3 +4,121 @@ export interface Option {
   icon?: React.ComponentType<{ className?: string }>;
   withCount?: boolean;
 }
+
+// User roles
+export type UserRole = 'doctor' | 'staff' | 'admin';
+
+// User type
+export interface User {
+  uid: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  createdAt: number;
+}
+
+// Patient type
+export interface Patient {
+  id: string;
+  fullName: string;
+  phoneNumber: string;
+  email?: string;
+  address?: string;
+  age?: number;
+  dateOfBirth?: string;
+  gender?: 'male' | 'female' | 'other';
+  emergencyContact?: string;
+  medicalHistory?: string;
+  currentMedications?: string;
+  createdBy: string;
+  createdByName: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// Visit type
+export interface Visit {
+  id: string;
+  patientId: string;
+  patientName: string;
+  visitDate: number;
+  chiefComplaint: string;
+  durationOfProblem?: string;
+  previousTreatment?: string;
+  painSeverity?: number;
+  attendingStaff: string;
+  attendingStaffName: string;
+  visitNotes?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// Doctor observation type
+export interface DoctorObservation {
+  id: string;
+  visitId: string;
+  patientId: string;
+  examinationFindings?: string;
+  diagnosis?: string;
+  treatmentPlan?: string;
+  estimatedRecoveryTime?: string;
+  warningsAndPrecautions?: string;
+  doctorNotes?: string;
+  doctorId: string;
+  doctorName: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// Medicine type
+export interface Medicine {
+  name: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  instructions?: string;
+}
+
+// Prescription type
+export interface Prescription {
+  id: string;
+  patientId: string;
+  patientName: string;
+  visitId: string;
+  medicines: Medicine[];
+  prescribedBy: string;
+  prescribedByName: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// Exercise type
+export interface Exercise {
+  name: string;
+  repetitions: string;
+  sets: string;
+  frequency: string;
+  duration: string;
+}
+
+// Exercise plan type
+export interface ExercisePlan {
+  id: string;
+  patientId: string;
+  patientName: string;
+  visitId: string;
+  exercises: Exercise[];
+  prescribedBy: string;
+  prescribedByName: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// Dashboard stats type
+export interface DashboardStats {
+  totalPatients: number;
+  todayVisits: number;
+  followUpsDue: number;
+  pendingPrescriptions: number;
+}
+
