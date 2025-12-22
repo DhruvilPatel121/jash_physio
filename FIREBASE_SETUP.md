@@ -64,14 +64,14 @@ This guide will walk you through setting up Firebase for the Jash Physiotherapy 
 {
   "users": {
     "DOCTOR_UID_HERE": {
-      "uid": "DOCTOR_UID_HERE",
+      "uid": "DOCTOR_UID_HERE", //sUEPq54UbCYd7RjrTAC9HT5KgsP2
       "email": "doctor@jash.com",
       "name": "Dr. Jash",
       "role": "doctor",
       "createdAt": 1703001600000
     },
     "STAFF_UID_HERE": {
-      "uid": "STAFF_UID_HERE",
+      "uid": "STAFF_UID_HERE", //qJcOwKgLmmOWnbQwR62VNKfblgG2
       "email": "staff@jash.com",
       "name": "Staff Member",
       "role": "staff",
@@ -82,6 +82,7 @@ This guide will walk you through setting up Firebase for the Jash Physiotherapy 
 ```
 
 **How to add this data:**
+
 1. Click the **+** icon next to the database root
 2. Name: `users`
 3. Click the **+** icon next to `users`
@@ -138,6 +139,7 @@ This guide will walk you through setting up Firebase for the Jash Physiotherapy 
 ## Step 6: Configure Application
 
 1. In your project root, copy `.env.example` to `.env`:
+
    ```bash
    cp .env.example .env
    ```
@@ -155,6 +157,7 @@ VITE_FIREBASE_APP_ID=your_app_id
 ```
 
 **Where to find these values:**
+
 - Go to Firebase Console → Project Settings (gear icon)
 - Scroll down to "Your apps" section
 - Click on your web app
@@ -163,11 +166,13 @@ VITE_FIREBASE_APP_ID=your_app_id
 ## Step 7: Test the Application
 
 1. Install dependencies:
+
    ```bash
    pnpm install
    ```
 
 2. Start the development server:
+
    ```bash
    pnpm dev
    ```
@@ -175,6 +180,7 @@ VITE_FIREBASE_APP_ID=your_app_id
 3. Open your browser to `http://localhost:5173`
 
 4. Login with:
+
    - Email: `doctor@jash.com`
    - Password: `doctor123`
 
@@ -206,7 +212,8 @@ To add more staff members:
 
 ### Issue: "Permission denied" errors
 
-**Solution**: 
+**Solution**:
+
 - Check that security rules are published
 - Verify user is logged in
 - Check that user profile exists in database
@@ -214,6 +221,7 @@ To add more staff members:
 ### Issue: User profile not loading
 
 **Solution**:
+
 - Verify the UID in the database matches the UID in Authentication
 - Check that all required fields are present (uid, email, name, role, createdAt)
 - Check browser console for errors
@@ -221,6 +229,7 @@ To add more staff members:
 ### Issue: Can't login
 
 **Solution**:
+
 - Verify Email/Password authentication is enabled
 - Check that the user exists in Authentication
 - Verify credentials are correct
@@ -229,6 +238,7 @@ To add more staff members:
 ### Issue: Database connection errors
 
 **Solution**:
+
 - Verify database URL in `.env` file
 - Check that Realtime Database is created and enabled
 - Verify security rules allow authenticated access
@@ -252,7 +262,7 @@ Before deploying to production:
 Your application should stay within free tier limits:
 
 - **Authentication**: Unlimited email/password sign-ins
-- **Realtime Database**: 
+- **Realtime Database**:
   - 1 GB stored data
   - 10 GB/month downloaded
   - 100 simultaneous connections
