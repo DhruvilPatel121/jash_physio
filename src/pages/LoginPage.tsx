@@ -1,49 +1,68 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
-import { Activity, Loader2 } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import { Activity, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const { signIn } = useAuth();
+  const { signIn, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Navigate to dashboard when user becomes available (after login or if already logged in)
+  useEffect(() => {
+    if (!authLoading && user) {
+      // Clear loading state if it was set during login
+      if (loading) {
+        setLoading(false);
+      }
+      // Navigate to dashboard
+      navigate("/", { replace: true });
+    }
+  }, [user, authLoading, loading, navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email || !password) {
       toast({
-        title: 'Error',
-        description: 'Please enter email and password',
-        variant: 'destructive'
+        title: "Error",
+        description: "Please enter email and password",
+        variant: "destructive",
       });
       return;
     }
 
     setLoading(true);
     const { error } = await signIn(email, password);
-    setLoading(false);
-
+    
     if (error) {
+      setLoading(false);
       toast({
-        title: 'Login Failed',
+        title: "Login Failed",
         description: error.message,
-        variant: 'destructive'
+        variant: "destructive",
       });
     } else {
       toast({
-        title: 'Success',
-        description: 'Logged in successfully'
+        title: "Success",
+        description: "Logged in successfully",
       });
-      navigate('/');
+      // Keep loading true - navigation will happen via useEffect when user is set
+      // The loading will be cleared when navigation occurs
     }
   };
 
@@ -56,7 +75,9 @@ export default function LoginPage() {
               <Activity className="w-8 h-8 text-primary-foreground" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">Jash Physiotherapy</CardTitle>
+          <CardTitle className="text-2xl font-bold">
+            Jash Physiotherapy
+          </CardTitle>
           <CardDescription>Patient Management System</CardDescription>
         </CardHeader>
         <CardContent>
@@ -90,13 +111,25 @@ export default function LoginPage() {
                   Logging in...
                 </>
               ) : (
-                'Login'
+                "Login"
               )}
             </Button>
           </form>
           <div className="mt-4 text-center text-sm text-muted-foreground">
-            <p>Demo Credentials:</p>
-            <p className="text-xs mt-1">Email: doctor@jash.com | Password: doctor123</p>
+            <p>
+              © {new Date().getFullYear()} Dhruvil Bhuva. All rights reserved.
+            </p>
+            <p className="text-xs mt-1">
+              Handcrafted by{" "}
+              <a
+                href="https://shivvilonsolutions.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-primary hover:underline"
+              >
+                Shivvilon Solutions
+              </a>
+            </p>
           </div>
         </CardContent>
       </Card>

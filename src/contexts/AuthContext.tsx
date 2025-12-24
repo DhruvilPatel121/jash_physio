@@ -1,21 +1,32 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { 
-  signInWithEmailAndPassword, 
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
+import {
+  signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
   onAuthStateChanged,
-  type User as FirebaseUser
-} from 'firebase/auth';
-import { auth } from '@/lib/firebase';
-import { getUser, createUser } from '@/services/firebase';
-import type { User, UserRole } from '@/types';
+  type User as FirebaseUser,
+} from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { getUser, createUser } from "@/services/firebase";
+import type { User, UserRole } from "@/types";
 
 interface AuthContextType {
   user: User | null;
   firebaseUser: FirebaseUser | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, name: string, role: UserRole) => Promise<{ error: Error | null }>;
+  signUp: (
+    email: string,
+    password: string,
+    name: string,
+    role: UserRole
+  ) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -29,15 +40,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setFirebaseUser(firebaseUser);
-      
+
       if (firebaseUser) {
         // Fetch user data from database
-        const userData = await getUser(firebaseUser.uid);
-        setUser(userData);
+        let userData = await getUser(firebaseUser.uid);
+
+        // If user profile doesn't exist in database, create a fallback one
+        if (!userData) {
+          const fallbackUser: User = {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email || "",
+            name:
+              firebaseUser.displayName ||
+              firebaseUser.email?.split("@")[0] ||
+              "User",
+            role: "staff",
+            createdAt: Date.now(),
+          };
+
+          // Set the fallback user immediately so navigation can proceed
+          setUser(fallbackUser);
+
+          // Try to persist it in the background (non-blocking)
+          try {
+            await createUser(firebaseUser.uid, fallbackUser);
+          } catch (err) {
+            console.error("Failed to create fallback user profile", err);
+            // Continue anyway - user is already set
+          }
+        } else {
+          setUser(userData);
+        }
       } else {
         setUser(null);
       }
-      
+
       setLoading(false);
     });
 
@@ -53,18 +90,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signUp = async (email: string, password: string, name: string, role: UserRole) => {
+  const signUp = async (
+    email: string,
+    password: string,
+    name: string,
+    role: UserRole
+  ) => {
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+
       // Create user profile in database
       await createUser(userCredential.user.uid, {
         email,
         name,
         role,
-        createdAt: Date.now()
+        createdAt: Date.now(),
       });
-      
+
       return { error: null };
     } catch (error) {
       return { error: error as Error };
@@ -78,7 +124,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, firebaseUser, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider
+      value={{ user, firebaseUser, loading, signIn, signUp, signOut }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -87,7 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }
