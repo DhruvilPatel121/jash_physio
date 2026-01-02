@@ -1,11 +1,22 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,17 +28,23 @@ import {
   updateDoctorObservation,
   getPrescription,
   createPrescription,
+  updatePrescription,
+  deletePrescription,
   getExercisePlan,
-  createExercisePlan
+  createExercisePlan,
+  updateExercisePlan,
+  deleteExercisePlan,
+  deleteVisit
 } from '@/services/firebase';
 import type { Visit, DoctorObservation, Prescription, ExercisePlan, Medicine, Exercise } from '@/types';
-import { ArrowLeft, Loader2, Save, Plus, Trash2, Stethoscope, FileText, Activity } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, Plus, Trash2, Stethoscope, FileText, Activity, Edit } from 'lucide-react';
 
 export default function VisitDetailPage() {
   const { patientId, visitId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { canEditRecords, canDeleteRecords } = usePermissions();
   
   const [visit, setVisit] = useState<Visit | null>(null);
   const [observation, setObservation] = useState<DoctorObservation | null>(null);
@@ -38,8 +55,16 @@ export default function VisitDetailPage() {
   const [showObservationDialog, setShowObservationDialog] = useState(false);
   const [showPrescriptionDialog, setShowPrescriptionDialog] = useState(false);
   const [showExerciseDialog, setShowExerciseDialog] = useState(false);
+  const [showDeletePrescriptionDialog, setShowDeletePrescriptionDialog] = useState(false);
+  const [showDeleteExerciseDialog, setShowDeleteExerciseDialog] = useState(false);
+  const [showDeleteVisitDialog, setShowDeleteVisitDialog] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   
-  const isDoctorOrAdmin = user?.role === 'doctor' || user?.role === 'admin';
+  // All staff (doctors, staff, admin) can add/edit observations, prescriptions, exercises, visits
+  const canEdit = canEditRecords();
+  
+  // Only main doctor (admin/doctor) can delete - all staff can add/edit but not delete
+  const canDelete = canDeleteRecords();
 
   useEffect(() => {
     if (visitId) {
@@ -90,14 +115,25 @@ export default function VisitDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate(`/patients/${patientId}`)}>
-          <ArrowLeft className="w-4 h-4" />
-        </Button>
-        <div>
-          <h1 className="text-3xl font-bold">Visit Details</h1>
-          <p className="text-muted-foreground mt-1">{visit.patientName}</p>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate(`/patients/${patientId}`)}>
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold">Visit Details</h1>
+            <p className="text-muted-foreground mt-1">{visit.patientName}</p>
+          </div>
         </div>
+        {canDelete && (
+          <Button 
+            variant="destructive" 
+            onClick={() => setShowDeleteVisitDialog(true)}
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Delete Visit
+          </Button>
+        )}
       </div>
 
       <Card>
@@ -146,9 +182,15 @@ export default function VisitDetailPage() {
 
       <Tabs defaultValue="observation" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="observation">Doctor Observation</TabsTrigger>
-          <TabsTrigger value="prescription">Prescription</TabsTrigger>
-          <TabsTrigger value="exercises">Exercises</TabsTrigger>
+          <TabsTrigger value="observation">
+            Doctor Observation {observation ? '(1)' : '(0)'}
+          </TabsTrigger>
+          <TabsTrigger value="prescription">
+            Prescription {prescription ? '(1)' : '(0)'}
+          </TabsTrigger>
+          <TabsTrigger value="exercises">
+            Exercises {exercisePlan ? '(1)' : '(0)'}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="observation" className="space-y-4">
@@ -159,7 +201,7 @@ export default function VisitDetailPage() {
                   <Stethoscope className="w-5 h-5" />
                   Doctor Observation
                 </CardTitle>
-                {isDoctorOrAdmin && (
+                {canEdit && (
                   <DoctorObservationDialog
                     visitId={visitId!}
                     patientId={patientId!}
@@ -210,16 +252,21 @@ export default function VisitDetailPage() {
                   )}
                   <div className="pt-4 border-t">
                     <p className="text-xs text-muted-foreground">
-                      By {observation.doctorName} on {new Date(observation.createdAt).toLocaleDateString()}
+                      Observed by {observation.doctorName} on {new Date(observation.createdAt).toLocaleDateString()}
                     </p>
+                    {observation.updatedAt && observation.updatedAt !== observation.createdAt && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Last updated on {new Date(observation.updatedAt).toLocaleDateString()}
+                      </p>
+                    )}
                   </div>
                 </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <Stethoscope className="w-12 h-12 mx-auto mb-4 opacity-50" />
                   <p>No doctor observation recorded yet</p>
-                  {!isDoctorOrAdmin && (
-                    <p className="text-sm mt-2">Only doctors can add observations</p>
+                  {!canEdit && (
+                    <p className="text-sm mt-2">Only doctors and staff can add observations</p>
                   )}
                 </div>
               )}
@@ -235,14 +282,27 @@ export default function VisitDetailPage() {
                   <FileText className="w-5 h-5" />
                   Prescription
                 </CardTitle>
-                {!prescription && (
-                  <PrescriptionDialog
-                    visitId={visitId!}
-                    patientId={patientId!}
-                    patientName={visit.patientName}
-                    onSave={loadVisitData}
-                  />
-                )}
+                <div className="flex gap-2">
+                  {canEdit && (
+                    <PrescriptionDialog
+                      visitId={visitId!}
+                      patientId={patientId!}
+                      patientName={visit.patientName}
+                      prescription={prescription}
+                      onSave={loadVisitData}
+                    />
+                  )}
+                  {prescription && canDelete && (
+                    <Button 
+                      variant="destructive" 
+                      size="sm"
+                      onClick={() => setShowDeletePrescriptionDialog(true)}
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete
+                    </Button>
+                  )}
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -283,14 +343,27 @@ export default function VisitDetailPage() {
                   <Activity className="w-5 h-5" />
                   Exercise Plan
                 </CardTitle>
-                {!exercisePlan && (
-                  <ExerciseDialog
-                    visitId={visitId!}
-                    patientId={patientId!}
-                    patientName={visit.patientName}
-                    onSave={loadVisitData}
-                  />
-                )}
+                <div className="flex gap-2">
+                  {canEdit && (
+                    <ExerciseDialog
+                      visitId={visitId!}
+                      patientId={patientId!}
+                      patientName={visit.patientName}
+                      exercisePlan={exercisePlan}
+                      onSave={loadVisitData}
+                    />
+                  )}
+                  {exercisePlan && canDelete && (
+                    <Button 
+                      variant="destructive" 
+                      size="sm"
+                      onClick={() => setShowDeleteExerciseDialog(true)}
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete
+                    </Button>
+                  )}
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -320,6 +393,150 @@ export default function VisitDetailPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Delete Visit Dialog */}
+      <AlertDialog open={showDeleteVisitDialog} onOpenChange={setShowDeleteVisitDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Visit?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this visit? This will also delete associated observations, prescriptions, and exercise plans. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={async () => {
+                setDeleting(true);
+                try {
+                  await deleteVisit(visitId!);
+                  toast({
+                    title: 'Success',
+                    description: 'Visit deleted successfully'
+                  });
+                  navigate(`/patients/${patientId}`);
+                } catch (error) {
+                  toast({
+                    title: 'Error',
+                    description: 'Failed to delete visit',
+                    variant: 'destructive'
+                  });
+                  setDeleting(false);
+                }
+              }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Prescription Dialog */}
+      <AlertDialog open={showDeletePrescriptionDialog} onOpenChange={setShowDeletePrescriptionDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Prescription?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this prescription? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={async () => {
+                if (!prescription) return;
+                setDeleting(true);
+                try {
+                  await deletePrescription(prescription.id);
+                  toast({
+                    title: 'Success',
+                    description: 'Prescription deleted successfully'
+                  });
+                  setShowDeletePrescriptionDialog(false);
+                  loadVisitData();
+                } catch (error) {
+                  toast({
+                    title: 'Error',
+                    description: 'Failed to delete prescription',
+                    variant: 'destructive'
+                  });
+                } finally {
+                  setDeleting(false);
+                }
+              }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Exercise Plan Dialog */}
+      <AlertDialog open={showDeleteExerciseDialog} onOpenChange={setShowDeleteExerciseDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Exercise Plan?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this exercise plan? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={async () => {
+                if (!exercisePlan) return;
+                setDeleting(true);
+                try {
+                  await deleteExercisePlan(exercisePlan.id);
+                  toast({
+                    title: 'Success',
+                    description: 'Exercise plan deleted successfully'
+                  });
+                  setShowDeleteExerciseDialog(false);
+                  loadVisitData();
+                } catch (error) {
+                  toast({
+                    title: 'Error',
+                    description: 'Failed to delete exercise plan',
+                    variant: 'destructive'
+                  });
+                } finally {
+                  setDeleting(false);
+                }
+              }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -492,21 +709,31 @@ function DoctorObservationDialog({
 function PrescriptionDialog({ 
   visitId, 
   patientId, 
-  patientName, 
+  patientName,
+  prescription,
   onSave 
 }: { 
   visitId: string; 
   patientId: string; 
-  patientName: string; 
+  patientName: string;
+  prescription?: Prescription | null;
   onSave: () => void;
 }) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [medicines, setMedicines] = useState<Medicine[]>([
-    { name: '', dosage: '', frequency: '', duration: '', instructions: '' }
-  ]);
+  const [medicines, setMedicines] = useState<Medicine[]>(
+    prescription?.medicines || [{ name: '', dosage: '', frequency: '', duration: '', instructions: '' }]
+  );
+
+  useEffect(() => {
+    if (prescription) {
+      setMedicines(prescription.medicines);
+    } else {
+      setMedicines([{ name: '', dosage: '', frequency: '', duration: '', instructions: '' }]);
+    }
+  }, [prescription]);
 
   const addMedicine = () => {
     setMedicines([...medicines, { name: '', dosage: '', frequency: '', duration: '', instructions: '' }]);
@@ -538,20 +765,33 @@ function PrescriptionDialog({
 
     setLoading(true);
     try {
-      await createPrescription({
-        visitId,
-        patientId,
-        patientName,
-        medicines: validMedicines,
-        prescribedBy: user.uid,
-        prescribedByName: user.name,
-        createdAt: Date.now(),
-        updatedAt: Date.now()
-      });
-      toast({
-        title: 'Success',
-        description: 'Prescription added successfully'
-      });
+      if (prescription) {
+        // Update existing prescription
+        await updatePrescription(prescription.id, {
+          medicines: validMedicines,
+          updatedAt: Date.now()
+        });
+        toast({
+          title: 'Success',
+          description: 'Prescription updated successfully'
+        });
+      } else {
+        // Create new prescription
+        await createPrescription({
+          visitId,
+          patientId,
+          patientName,
+          medicines: validMedicines,
+          prescribedBy: user.uid,
+          prescribedByName: user.name,
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        });
+        toast({
+          title: 'Success',
+          description: 'Prescription added successfully'
+        });
+      }
       setOpen(false);
       onSave();
     } catch (error) {
@@ -569,13 +809,22 @@ function PrescriptionDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm">
-          <Plus className="w-4 h-4 mr-2" />
-          Add Prescription
+          {prescription ? (
+            <>
+              <Edit className="w-4 h-4 mr-2" />
+              Edit Prescription
+            </>
+          ) : (
+            <>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Prescription
+            </>
+          )}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add Prescription</DialogTitle>
+          <DialogTitle>{prescription ? 'Edit Prescription' : 'Add Prescription'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           {medicines.map((medicine, index) => (
@@ -674,21 +923,31 @@ function PrescriptionDialog({
 function ExerciseDialog({ 
   visitId, 
   patientId, 
-  patientName, 
+  patientName,
+  exercisePlan,
   onSave 
 }: { 
   visitId: string; 
   patientId: string; 
-  patientName: string; 
+  patientName: string;
+  exercisePlan?: ExercisePlan | null;
   onSave: () => void;
 }) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [exercises, setExercises] = useState<Exercise[]>([
-    { name: '', repetitions: '', sets: '', frequency: '', duration: '' }
-  ]);
+  const [exercises, setExercises] = useState<Exercise[]>(
+    exercisePlan?.exercises || [{ name: '', repetitions: '', sets: '', frequency: '', duration: '' }]
+  );
+
+  useEffect(() => {
+    if (exercisePlan) {
+      setExercises(exercisePlan.exercises);
+    } else {
+      setExercises([{ name: '', repetitions: '', sets: '', frequency: '', duration: '' }]);
+    }
+  }, [exercisePlan]);
 
   const addExercise = () => {
     setExercises([...exercises, { name: '', repetitions: '', sets: '', frequency: '', duration: '' }]);
@@ -720,20 +979,33 @@ function ExerciseDialog({
 
     setLoading(true);
     try {
-      await createExercisePlan({
-        visitId,
-        patientId,
-        patientName,
-        exercises: validExercises,
-        prescribedBy: user.uid,
-        prescribedByName: user.name,
-        createdAt: Date.now(),
-        updatedAt: Date.now()
-      });
-      toast({
-        title: 'Success',
-        description: 'Exercise plan added successfully'
-      });
+      if (exercisePlan) {
+        // Update existing exercise plan
+        await updateExercisePlan(exercisePlan.id, {
+          exercises: validExercises,
+          updatedAt: Date.now()
+        });
+        toast({
+          title: 'Success',
+          description: 'Exercise plan updated successfully'
+        });
+      } else {
+        // Create new exercise plan
+        await createExercisePlan({
+          visitId,
+          patientId,
+          patientName,
+          exercises: validExercises,
+          prescribedBy: user.uid,
+          prescribedByName: user.name,
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        });
+        toast({
+          title: 'Success',
+          description: 'Exercise plan added successfully'
+        });
+      }
       setOpen(false);
       onSave();
     } catch (error) {
@@ -751,13 +1023,22 @@ function ExerciseDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm">
-          <Plus className="w-4 h-4 mr-2" />
-          Add Exercise Plan
+          {exercisePlan ? (
+            <>
+              <Edit className="w-4 h-4 mr-2" />
+              Edit Exercise Plan
+            </>
+          ) : (
+            <>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Exercise Plan
+            </>
+          )}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add Exercise Plan</DialogTitle>
+          <DialogTitle>{exercisePlan ? 'Edit Exercise Plan' : 'Add Exercise Plan'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           {exercises.map((exercise, index) => (

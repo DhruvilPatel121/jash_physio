@@ -89,7 +89,9 @@ export default function PatientFormPage() {
         await updatePatient(id, {
           ...formData,
           age: formData.age ? parseInt(formData.age) : undefined,
-          gender: formData.gender as 'male' | 'female' | 'other' | undefined
+          gender: formData.gender as 'male' | 'female' | 'other' | undefined,
+          updatedBy: user.uid,
+          updatedByName: user.name
         });
         toast({
           title: 'Success',

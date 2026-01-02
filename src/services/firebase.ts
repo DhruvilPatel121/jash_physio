@@ -1,25 +1,25 @@
-import { 
-  ref, 
-  push, 
-  set, 
-  get, 
-  update, 
-  remove, 
-  query, 
+import {
+  ref,
+  push,
+  set,
+  get,
+  update,
+  remove,
+  query,
   orderByChild,
   equalTo,
   onValue,
   off
 } from 'firebase/database';
 import { database } from '@/lib/firebase';
-import type { 
-  User, 
-  Patient, 
-  Visit, 
-  DoctorObservation, 
-  Prescription, 
+import type {
+  User,
+  Patient,
+  Visit,
+  DoctorObservation,
+  Prescription,
   ExercisePlan,
-  DashboardStats 
+  DashboardStats
 } from '@/types';
 
 // User operations
@@ -58,7 +58,7 @@ export const getAllPatients = async (): Promise<Patient[]> => {
   const patientsRef = ref(database, 'patients');
   const snapshot = await get(patientsRef);
   if (!snapshot.exists()) return [];
-  
+
   const patients: Patient[] = [];
   snapshot.forEach((childSnapshot) => {
     patients.push(childSnapshot.val());
@@ -72,14 +72,82 @@ export const updatePatient = async (patientId: string, updates: Partial<Patient>
 };
 
 export const deletePatient = async (patientId: string) => {
-  const patientRef = ref(database, `patients/${patientId}`);
-  await remove(patientRef);
+  try {
+    console.log(`[deletePatient] Starting deletion for patient: ${patientId}`);
+
+    // Get all related records first
+    const [visits, prescriptions, exercisePlans] = await Promise.all([
+      getPatientVisits(patientId),
+      getPatientPrescriptions(patientId),
+      getPatientExercisePlans(patientId)
+    ]);
+
+    console.log(`[deletePatient] Found ${visits.length} visits, ${prescriptions.length} prescriptions, ${exercisePlans.length} exercise plans`);
+
+    // Get all visit IDs to delete related observations
+    const visitIds = visits.map(v => v.id);
+
+    // Get all doctor observations for these visits
+    const observationsRef = ref(database, 'doctorObservations');
+    const observationsSnapshot = await get(observationsRef);
+    const observationsToDelete: string[] = [];
+
+    if (observationsSnapshot.exists()) {
+      observationsSnapshot.forEach((childSnapshot) => {
+        const observation = childSnapshot.val();
+        if (visitIds.includes(observation.visitId)) {
+          observationsToDelete.push(observation.id);
+        }
+      });
+    }
+
+    console.log(`[deletePatient] Found ${observationsToDelete.length} doctor observations to delete`);
+
+    // Delete all related records
+    const deletePromises: Promise<void>[] = [];
+
+    // Delete patient
+    const patientRef = ref(database, `patients/${patientId}`);
+    deletePromises.push(remove(patientRef));
+
+    // Delete all visits
+    visits.forEach(visit => {
+      const visitRef = ref(database, `visits/${visit.id}`);
+      deletePromises.push(remove(visitRef));
+    });
+
+    // Delete all doctor observations
+    observationsToDelete.forEach(obsId => {
+      const obsRef = ref(database, `doctorObservations/${obsId}`);
+      deletePromises.push(remove(obsRef));
+    });
+
+    // Delete all prescriptions
+    prescriptions.forEach(prescription => {
+      const prescriptionRef = ref(database, `prescriptions/${prescription.id}`);
+      deletePromises.push(remove(prescriptionRef));
+    });
+
+    // Delete all exercise plans
+    exercisePlans.forEach(plan => {
+      const planRef = ref(database, `exercisePlans/${plan.id}`);
+      deletePromises.push(remove(planRef));
+    });
+
+    // Execute all deletions
+    await Promise.all(deletePromises);
+
+    console.log(`[deletePatient] Successfully deleted patient ${patientId} and all related records`);
+  } catch (error) {
+    console.error(`[deletePatient] Error deleting patient ${patientId}:`, error);
+    throw error;
+  }
 };
 
 export const searchPatients = async (searchTerm: string): Promise<Patient[]> => {
   const patients = await getAllPatients();
   const lowerSearch = searchTerm.toLowerCase();
-  return patients.filter(patient => 
+  return patients.filter(patient =>
     patient.fullName.toLowerCase().includes(lowerSearch) ||
     patient.phoneNumber.includes(searchTerm)
   );
@@ -104,9 +172,9 @@ export const getPatientVisits = async (patientId: string): Promise<Visit[]> => {
   const visitsRef = ref(database, 'visits');
   const visitsQuery = query(visitsRef, orderByChild('patientId'), equalTo(patientId));
   const snapshot = await get(visitsQuery);
-  
+
   if (!snapshot.exists()) return [];
-  
+
   const visits: Visit[] = [];
   snapshot.forEach((childSnapshot) => {
     visits.push(childSnapshot.val());
@@ -118,7 +186,7 @@ export const getAllVisits = async (): Promise<Visit[]> => {
   const visitsRef = ref(database, 'visits');
   const snapshot = await get(visitsRef);
   if (!snapshot.exists()) return [];
-  
+
   const visits: Visit[] = [];
   snapshot.forEach((childSnapshot) => {
     visits.push(childSnapshot.val());
@@ -149,9 +217,9 @@ export const getDoctorObservation = async (visitId: string): Promise<DoctorObser
   const observationsRef = ref(database, 'doctorObservations');
   const observationsQuery = query(observationsRef, orderByChild('visitId'), equalTo(visitId));
   const snapshot = await get(observationsQuery);
-  
+
   if (!snapshot.exists()) return null;
-  
+
   let observation: DoctorObservation | null = null;
   snapshot.forEach((childSnapshot) => {
     observation = childSnapshot.val();
@@ -177,9 +245,9 @@ export const getPrescription = async (visitId: string): Promise<Prescription | n
   const prescriptionsRef = ref(database, 'prescriptions');
   const prescriptionsQuery = query(prescriptionsRef, orderByChild('visitId'), equalTo(visitId));
   const snapshot = await get(prescriptionsQuery);
-  
+
   if (!snapshot.exists()) return null;
-  
+
   let prescription: Prescription | null = null;
   snapshot.forEach((childSnapshot) => {
     prescription = childSnapshot.val();
@@ -191,9 +259,9 @@ export const getPatientPrescriptions = async (patientId: string): Promise<Prescr
   const prescriptionsRef = ref(database, 'prescriptions');
   const prescriptionsQuery = query(prescriptionsRef, orderByChild('patientId'), equalTo(patientId));
   const snapshot = await get(prescriptionsQuery);
-  
+
   if (!snapshot.exists()) return [];
-  
+
   const prescriptions: Prescription[] = [];
   snapshot.forEach((childSnapshot) => {
     prescriptions.push(childSnapshot.val());
@@ -224,9 +292,9 @@ export const getExercisePlan = async (visitId: string): Promise<ExercisePlan | n
   const exercisePlansRef = ref(database, 'exercisePlans');
   const exercisePlansQuery = query(exercisePlansRef, orderByChild('visitId'), equalTo(visitId));
   const snapshot = await get(exercisePlansQuery);
-  
+
   if (!snapshot.exists()) return null;
-  
+
   let exercisePlan: ExercisePlan | null = null;
   snapshot.forEach((childSnapshot) => {
     exercisePlan = childSnapshot.val();
@@ -238,9 +306,9 @@ export const getPatientExercisePlans = async (patientId: string): Promise<Exerci
   const exercisePlansRef = ref(database, 'exercisePlans');
   const exercisePlansQuery = query(exercisePlansRef, orderByChild('patientId'), equalTo(patientId));
   const snapshot = await get(exercisePlansQuery);
-  
+
   if (!snapshot.exists()) return [];
-  
+
   const exercisePlans: ExercisePlan[] = [];
   snapshot.forEach((childSnapshot) => {
     exercisePlans.push(childSnapshot.val());
@@ -262,19 +330,97 @@ export const deleteExercisePlan = async (exercisePlanId: string) => {
 export const getDashboardStats = async (): Promise<DashboardStats> => {
   const patients = await getAllPatients();
   const visits = await getAllVisits();
-  
+  const prescriptions = await getAllPrescriptions();
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  const todayEnd = new Date(today);
+  todayEnd.setHours(23, 59, 59, 999);
   const todayTimestamp = today.getTime();
-  
-  const todayVisits = visits.filter(visit => visit.visitDate >= todayTimestamp);
-  
+  const todayEndTimestamp = todayEnd.getTime();
+
+  const todayVisits = visits.filter(visit =>
+    visit.visitDate >= todayTimestamp && visit.visitDate <= todayEndTimestamp
+  );
+
+  // Follow-ups due: visits from 7-14 days ago that might need follow-up
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 14);
+  const fourteenDaysAgo = new Date();
+  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 7);
+  const followUpsDue = visits.filter(visit =>
+    visit.visitDate >= sevenDaysAgo.getTime() &&
+    visit.visitDate <= fourteenDaysAgo.getTime()
+  ).length;
+
+  // Pending prescriptions: prescriptions created today without completion
+  const pendingPrescriptions = prescriptions.filter(p => {
+    const prescriptionDate = new Date(p.createdAt);
+    return prescriptionDate >= today && prescriptionDate <= todayEnd;
+  }).length;
+
   return {
     totalPatients: patients.length,
     todayVisits: todayVisits.length,
-    followUpsDue: 0, // Can be calculated based on visit dates and treatment plans
-    pendingPrescriptions: 0 // Can be calculated based on prescription status
+    followUpsDue,
+    pendingPrescriptions
   };
+};
+
+// Get today's visits
+export const getTodayVisits = async (): Promise<Visit[]> => {
+  const visits = await getAllVisits();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayEnd = new Date(today);
+  todayEnd.setHours(23, 59, 59, 999);
+  const todayTimestamp = today.getTime();
+  const todayEndTimestamp = todayEnd.getTime();
+
+  return visits.filter(visit =>
+    visit.visitDate >= todayTimestamp && visit.visitDate <= todayEndTimestamp
+  );
+};
+
+// Get follow-ups due
+export const getFollowUpsDue = async (): Promise<Visit[]> => {
+  const visits = await getAllVisits();
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 14);
+  const fourteenDaysAgo = new Date();
+  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 7);
+
+  return visits.filter(visit =>
+    visit.visitDate >= sevenDaysAgo.getTime() &&
+    visit.visitDate <= fourteenDaysAgo.getTime()
+  );
+};
+
+// Get all prescriptions
+export const getAllPrescriptions = async (): Promise<Prescription[]> => {
+  const prescriptionsRef = ref(database, 'prescriptions');
+  const snapshot = await get(prescriptionsRef);
+  if (!snapshot.exists()) return [];
+
+  const prescriptions: Prescription[] = [];
+  snapshot.forEach((childSnapshot) => {
+    prescriptions.push(childSnapshot.val());
+  });
+  return prescriptions.sort((a, b) => b.createdAt - a.createdAt);
+};
+
+// Get pending prescriptions
+export const getPendingPrescriptions = async (): Promise<Prescription[]> => {
+  const prescriptions = await getAllPrescriptions();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayEnd = new Date(today);
+  todayEnd.setHours(23, 59, 59, 999);
+
+  return prescriptions.filter(p => {
+    const prescriptionDate = new Date(p.createdAt);
+    return prescriptionDate >= today && prescriptionDate <= todayEnd;
+  });
 };
 
 // Real-time listeners
@@ -285,14 +431,14 @@ export const subscribeToPatients = (callback: (patients: Patient[]) => void) => 
       callback([]);
       return;
     }
-    
+
     const patients: Patient[] = [];
     snapshot.forEach((childSnapshot) => {
       patients.push(childSnapshot.val());
     });
     callback(patients.sort((a, b) => b.createdAt - a.createdAt));
   });
-  
+
   return () => off(patientsRef);
 };
 
@@ -303,13 +449,13 @@ export const subscribeToVisits = (callback: (visits: Visit[]) => void) => {
       callback([]);
       return;
     }
-    
+
     const visits: Visit[] = [];
     snapshot.forEach((childSnapshot) => {
       visits.push(childSnapshot.val());
     });
     callback(visits.sort((a, b) => b.visitDate - a.visitDate));
   });
-  
+
   return () => off(visitsRef);
 };

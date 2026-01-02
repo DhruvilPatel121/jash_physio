@@ -48,7 +48,7 @@ export default function DashboardPage() {
       icon: Calendar,
       color: 'text-chart-2',
       bgColor: 'bg-chart-2/10',
-      onClick: () => navigate('/patients')
+      onClick: () => navigate('/visits/today')
     },
     {
       title: 'Follow-ups Due',
@@ -56,7 +56,7 @@ export default function DashboardPage() {
       icon: Clock,
       color: 'text-chart-4',
       bgColor: 'bg-chart-4/10',
-      onClick: () => navigate('/patients')
+      onClick: () => navigate('/visits/follow-ups')
     },
     {
       title: 'Pending Prescriptions',
@@ -64,7 +64,7 @@ export default function DashboardPage() {
       icon: FileText,
       color: 'text-chart-3',
       bgColor: 'bg-chart-3/10',
-      onClick: () => navigate('/patients')
+      onClick: () => navigate('/prescriptions/pending')
     }
   ];
 

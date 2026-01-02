@@ -5,6 +5,9 @@ import PatientFormPage from './pages/PatientFormPage';
 import PatientDetailPage from './pages/PatientDetailPage';
 import VisitFormPage from './pages/VisitFormPage';
 import VisitDetailPage from './pages/VisitDetailPage';
+import TodaysVisitsPage from './pages/TodaysVisitsPage';
+import FollowUpsDuePage from './pages/FollowUpsDuePage';
+import PendingPrescriptionsPage from './pages/PendingPrescriptionsPage';
 import type { ReactNode } from 'react';
 
 interface RouteConfig {
@@ -59,6 +62,24 @@ const routes: RouteConfig[] = [
     name: 'Visit Detail',
     path: '/patients/:patientId/visits/:visitId',
     element: <VisitDetailPage />,
+    visible: false
+  },
+  {
+    name: "Today's Visits",
+    path: '/visits/today',
+    element: <TodaysVisitsPage />,
+    visible: false
+  },
+  {
+    name: 'Follow-ups Due',
+    path: '/visits/follow-ups',
+    element: <FollowUpsDuePage />,
+    visible: false
+  },
+  {
+    name: 'Pending Prescriptions',
+    path: '/prescriptions/pending',
+    element: <PendingPrescriptionsPage />,
     visible: false
   }
 ];

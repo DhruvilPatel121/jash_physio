@@ -5,7 +5,11 @@ export interface Option {
   withCount?: boolean;
 }
 
-// User roles
+/**
+ * User roles with hierarchical permissions:
+ * - 'admin' or 'doctor': Main doctor with full permissions including patient deletion
+ * - 'staff': Staff members who can create and edit all records but cannot delete patients
+ */
 export type UserRole = 'doctor' | 'staff' | 'admin';
 
 // User type
@@ -33,6 +37,8 @@ export interface Patient {
   createdBy: string;
   createdByName: string;
   createdAt: number;
+  updatedBy?: string;
+  updatedByName?: string;
   updatedAt: number;
 }
 
