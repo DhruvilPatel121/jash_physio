@@ -1,45 +1,76 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { getAllPatients, searchPatients, subscribeToPatients } from '@/services/firebase';
-import type { Patient } from '@/types';
-import { Search, Plus, Phone, Mail, User, Loader2 } from 'lucide-react';
+import { subscribeToPatients, getAllCaseNotes, subscribeToCaseNotes } from '@/services/firebase';
+import type { Patient, CaseNote } from '@/types';
+import { Search, Plus, User, Loader2 } from 'lucide-react';
 import { useDebounce } from '@/hooks/use-debounce';
 
 export default function PatientsPage() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [filteredPatients, setFilteredPatients] = useState<Patient[]>([]);
+  const [caseNotes, setCaseNotes] = useState<CaseNote[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const debouncedSearch = useDebounce(searchTerm, 300);
 
   useEffect(() => {
-    // Subscribe to real-time updates
-    const unsubscribe = subscribeToPatients((updatedPatients) => {
+    // Subscribe to real-time patient updates
+    const unsubscribePatients = subscribeToPatients((updatedPatients) => {
       setPatients(updatedPatients);
       setFilteredPatients(updatedPatients);
       setLoading(false);
     });
+    // Subscribe to real-time case notes so cards refresh instantly
+    const unsubscribeNotes = subscribeToCaseNotes((notes) => {
+      setCaseNotes(notes);
+    });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribePatients();
+      unsubscribeNotes();
+    };
   }, []);
+
+  // Build latest case note by patientId
+  const latestCaseNoteByPatient = useMemo(() => {
+    const map: Record<string, CaseNote> = {};
+    for (const n of caseNotes) {
+      if (!map[n.patientId]) map[n.patientId] = n;
+    }
+    return map;
+  }, [caseNotes]);
 
   useEffect(() => {
     if (debouncedSearch) {
-      const filtered = patients.filter(patient => 
-        patient.fullName.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        patient.phoneNumber.includes(debouncedSearch) ||
-        patient.email?.toLowerCase().includes(debouncedSearch.toLowerCase())
-      );
+      const term = debouncedSearch.toLowerCase();
+      const filtered = patients.filter((patient) => {
+        const note = latestCaseNoteByPatient[patient.id];
+        const combined = [
+          note?.complaint,
+          note?.diagnosis,
+          note?.mriFinding,
+          note?.xrayFinding,
+          note?.precautions,
+          note?.rxPlan,
+          note?.exerciseProtocol
+        ].filter(Boolean).join(' ').toLowerCase();
+        return (
+          patient.fullName.toLowerCase().includes(term) ||
+          patient.phoneNumber.includes(debouncedSearch) ||
+          (patient.email && patient.email.toLowerCase().includes(term)) ||
+          combined.includes(term)
+        );
+      });
       setFilteredPatients(filtered);
     } else {
       setFilteredPatients(patients);
     }
-  }, [debouncedSearch, patients]);
+  }, [debouncedSearch, patients, latestCaseNoteByPatient]);
 
   if (loading) {
     return (
@@ -67,7 +98,7 @@ export default function PatientsPage() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
-              placeholder="Search by name, phone, or email..."
+              placeholder="Search by name, phone, diagnosis, Rx plan, findings, or exercise protocol..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
@@ -115,18 +146,27 @@ export default function PatientsPage() {
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-2">
-                    <div className="flex items-center text-sm">
-                      <Phone className="w-4 h-4 mr-2 text-muted-foreground" />
-                      <span>{patient.phoneNumber}</span>
-                    </div>
-                    {patient.email && (
-                      <div className="flex items-center text-sm">
-                        <Mail className="w-4 h-4 mr-2 text-muted-foreground" />
-                        <span className="truncate">{patient.email}</span>
-                      </div>
-                    )}
+                    {(() => {
+                      const note = latestCaseNoteByPatient[patient.id];
+                      return (
+                        <div className="space-y-1">
+                          <div className="text-sm">
+                            <span className="font-medium text-sky-700">Complaint:</span>{' '}
+                            <span className="text-muted-foreground line-clamp-2">{note?.complaint || '—'}</span>
+                          </div>
+                          <div className="text-sm">
+                            <span className="font-medium text-sky-700">Diagnosis:</span>{' '}
+                            <span className="text-muted-foreground line-clamp-2">{note?.diagnosis || '—'}</span>
+                          </div>
+                          <div className="text-sm">
+                            <span className="font-medium text-sky-700">Rx plan:</span>{' '}
+                            <span className="text-muted-foreground line-clamp-2">{note?.rxPlan || '—'}</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
                     <div className="text-xs text-muted-foreground mt-2">
-                      Added by {patient.createdByName} on {new Date(patient.createdAt).toLocaleDateString()}
+                      Updated on {new Date(patient.updatedAt || patient.createdAt).toLocaleDateString()}
                     </div>
                   </CardContent>
                 </Card>

@@ -21,10 +21,11 @@ export function usePermissions() {
 
   /**
    * Check if user can delete visits, prescriptions, or exercise plans
-   * Only admin and doctor roles can delete
+   * All authenticated roles (admin, doctor, staff) can delete timeline records
+   * Note: patient deletion is still restricted by canDeletePatient
    */
   const canDeleteRecords = (): boolean => {
-    return user?.role === 'admin' || user?.role === 'doctor';
+    return !!user && (user.role === 'admin' || user.role === 'doctor' || user.role === 'staff');
   };
 
   /**

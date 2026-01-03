@@ -19,6 +19,7 @@ import type {
   DoctorObservation,
   Prescription,
   ExercisePlan,
+  CaseNote,
   DashboardStats
 } from '@/types';
 
@@ -324,6 +325,111 @@ export const updateExercisePlan = async (exercisePlanId: string, updates: Partia
 export const deleteExercisePlan = async (exercisePlanId: string) => {
   const exercisePlanRef = ref(database, `exercisePlans/${exercisePlanId}`);
   await remove(exercisePlanRef);
+};
+
+// Aggregate getters for list pages and summaries
+export const getAllDoctorObservations = async (): Promise<DoctorObservation[]> => {
+  const observationsRef = ref(database, 'doctorObservations');
+  const snapshot = await get(observationsRef);
+  if (!snapshot.exists()) return [];
+
+  const observations: DoctorObservation[] = [];
+  snapshot.forEach((childSnapshot) => {
+    observations.push(childSnapshot.val());
+  });
+  return observations.sort((a, b) => b.createdAt - a.createdAt);
+};
+
+export const getAllExercisePlans = async (): Promise<ExercisePlan[]> => {
+  const exercisePlansRef = ref(database, 'exercisePlans');
+  const snapshot = await get(exercisePlansRef);
+  if (!snapshot.exists()) return [];
+
+  const plans: ExercisePlan[] = [];
+  snapshot.forEach((childSnapshot) => {
+    plans.push(childSnapshot.val());
+  });
+  return plans.sort((a, b) => b.createdAt - a.createdAt);
+};
+
+// Patient-scoped observations list
+export const getPatientDoctorObservations = async (patientId: string): Promise<DoctorObservation[]> => {
+  const observationsRef = ref(database, 'doctorObservations');
+  const observationsQuery = query(observationsRef, orderByChild('patientId'), equalTo(patientId));
+  const snapshot = await get(observationsQuery);
+
+  if (!snapshot.exists()) return [];
+
+  const observations: DoctorObservation[] = [];
+  snapshot.forEach((childSnapshot) => {
+    observations.push(childSnapshot.val());
+  });
+  return observations.sort((a, b) => b.createdAt - a.createdAt);
+};
+
+export const deleteDoctorObservation = async (observationId: string) => {
+  const obsRef = ref(database, `doctorObservations/${observationId}`);
+  await remove(obsRef);
+};
+
+// Case Notes (Unified entries)
+export const createCaseNote = async (note: Omit<CaseNote, 'id'>) => {
+  const notesRef = ref(database, 'caseNotes');
+  const newRef = push(notesRef);
+  const id = newRef.key!;
+  await set(newRef, { id, ...note });
+  return id;
+};
+
+export const updateCaseNote = async (noteId: string, updates: Partial<CaseNote>) => {
+  const noteRef = ref(database, `caseNotes/${noteId}`);
+  await update(noteRef, { ...updates, updatedAt: Date.now() });
+};
+
+export const deleteCaseNote = async (noteId: string) => {
+  const noteRef = ref(database, `caseNotes/${noteId}`);
+  await remove(noteRef);
+};
+
+export const getAllCaseNotes = async (): Promise<CaseNote[]> => {
+  const notesRef = ref(database, 'caseNotes');
+  const snapshot = await get(notesRef);
+  if (!snapshot.exists()) return [];
+  const notes: CaseNote[] = [];
+  snapshot.forEach((c) => {
+    notes.push(c.val());
+  });
+  return notes.sort((a, b) => b.date - a.date || b.createdAt - a.createdAt);
+};
+
+export const getPatientCaseNotes = async (patientId: string): Promise<CaseNote[]> => {
+  const notesRef = ref(database, 'caseNotes');
+  const qy = query(notesRef, orderByChild('patientId'), equalTo(patientId));
+  const snapshot = await get(qy);
+  if (!snapshot.exists()) return [];
+  const notes: CaseNote[] = [];
+  snapshot.forEach((c) => {
+    notes.push(c.val());
+  });
+  return notes.sort((a, b) => b.date - a.date || b.createdAt - a.createdAt);
+};
+
+// Realtime subscription to all case notes (used by Patients page cards)
+export const subscribeToCaseNotes = (callback: (notes: CaseNote[]) => void) => {
+  const notesRef = ref(database, 'caseNotes');
+  const unsubscribe = onValue(notesRef, (snapshot) => {
+    if (!snapshot.exists()) {
+      callback([]);
+      return;
+    }
+    const notes: CaseNote[] = [];
+    snapshot.forEach((child) => {
+      notes.push(child.val());
+    });
+    notes.sort((a, b) => (b.date - a.date) || (b.createdAt - a.createdAt));
+    callback(notes);
+  });
+  return unsubscribe;
 };
 
 // Dashboard statistics

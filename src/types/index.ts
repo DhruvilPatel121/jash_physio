@@ -5,6 +5,27 @@ export interface Option {
   withCount?: boolean;
 }
 
+// Unified case note combining complaint, diagnosis, findings, precautions, Rx plan, and exercise protocol
+export interface CaseNote {
+  id: string;
+  patientId: string;
+  patientName: string;
+  date: number; // timestamp for the case date
+  complaint?: string;
+  diagnosis?: string;
+  mriFinding?: string;
+  xrayFinding?: string;
+  precautions?: string;
+  rxPlan?: string;
+  exerciseProtocol?: string;
+  createdBy: string;
+  createdByName: string;
+  createdAt: number;
+  updatedBy?: string;
+  updatedByName?: string;
+  updatedAt: number;
+}
+
 /**
  * User roles with hierarchical permissions:
  * - 'admin' or 'doctor': Main doctor with full permissions including patient deletion
