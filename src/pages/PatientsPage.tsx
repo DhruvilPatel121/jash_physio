@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { subscribeToPatients, getAllCaseNotes, subscribeToCaseNotes } from '@/services/firebase';
 import type { Patient, CaseNote } from '@/types';
-import { Search, Plus, User, Loader2 } from 'lucide-react';
+import { Search, Plus, User, Loader2, Download } from 'lucide-react';
 import { useDebounce } from '@/hooks/use-debounce';
 
 export default function PatientsPage() {
@@ -17,6 +17,113 @@ export default function PatientsPage() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const debouncedSearch = useDebounce(searchTerm, 300);
+
+  const loadJsPDF = (): Promise<any> => {
+    return new Promise((resolve, reject) => {
+      // If already loaded
+      // @ts-ignore
+      if (window.jspdf && window.jspdf.jsPDF) return resolve(window.jspdf.jsPDF);
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      script.async = true;
+      script.onload = () => {
+        // @ts-ignore
+        if (window.jspdf && window.jspdf.jsPDF) resolve(window.jspdf.jsPDF);
+        else reject(new Error('jsPDF failed to load'));
+      };
+      script.onerror = () => reject(new Error('Failed to load jsPDF'));
+      document.body.appendChild(script);
+    });
+  };
+
+  const exportPatientsPdf = async () => {
+    const jsPDF = await loadJsPDF();
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    const margin = 36; // 0.5 inch
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let y = margin;
+
+    // Header
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text('Patients Export', margin, y);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    y += 16;
+    const dateStr = `${new Date().toLocaleDateString('en-GB')} ${new Date().toLocaleTimeString()}`;
+    doc.setTextColor(100);
+    doc.text(`Generated on ${dateStr} • Total: ${patients.length}`, margin, y);
+    doc.setTextColor(0);
+    y += 18;
+
+    // Table header
+    const colWidths = [pageWidth - margin*2];
+    // We will render as a table with fixed columns: Name, Mobile, Email, Address
+    const headers = ['Name', 'Mobile', 'Email', 'Address'];
+    const widths = [0.26, 0.18, 0.28, 0.28].map(f => (pageWidth - margin*2) * f);
+    const xPositions = [margin, margin + widths[0], margin + widths[0] + widths[1], margin + widths[0] + widths[1] + widths[2]];
+
+    doc.setFillColor(243, 244, 246);
+    doc.rect(margin, y - 12, pageWidth - margin*2, 24, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text(headers[0], xPositions[0] + 4, y + 6);
+    doc.text(headers[1], xPositions[1] + 4, y + 6);
+    doc.text(headers[2], xPositions[2] + 4, y + 6);
+    doc.text(headers[3], xPositions[3] + 4, y + 6);
+    y += 20;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+
+    const drawRow = (name: string, mobile: string, email: string, address: string) => {
+      const rowHeights = [
+        doc.getTextDimensions(doc.splitTextToSize(name, widths[0]-8)).h,
+        doc.getTextDimensions(doc.splitTextToSize(mobile, widths[1]-8)).h,
+        doc.getTextDimensions(doc.splitTextToSize(email, widths[2]-8)).h,
+        doc.getTextDimensions(doc.splitTextToSize(address, widths[3]-8)).h,
+      ];
+      const rowH = Math.max(...rowHeights) + 10;
+      // Page break
+      if (y + rowH + margin > doc.internal.pageSize.getHeight()) {
+        doc.addPage();
+        y = margin;
+        // repeat header
+        doc.setFillColor(243, 244, 246);
+        doc.rect(margin, y - 12, pageWidth - margin*2, 24, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(11);
+        doc.text(headers[0], xPositions[0] + 4, y + 6);
+        doc.text(headers[1], xPositions[1] + 4, y + 6);
+        doc.text(headers[2], xPositions[2] + 4, y + 6);
+        doc.text(headers[3], xPositions[3] + 4, y + 6);
+        y += 20;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+      }
+      // Cell borders
+      doc.setDrawColor(229, 231, 235);
+      doc.rect(margin, y-10, widths[0], rowH);
+      doc.rect(xPositions[1], y-10, widths[1], rowH);
+      doc.rect(xPositions[2], y-10, widths[2], rowH);
+      doc.rect(xPositions[3], y-10, widths[3], rowH);
+      // Text
+      doc.text(doc.splitTextToSize(name, widths[0]-8) as any, xPositions[0]+4, y);
+      doc.text(doc.splitTextToSize(mobile, widths[1]-8) as any, xPositions[1]+4, y);
+      doc.text(doc.splitTextToSize(email, widths[2]-8) as any, xPositions[2]+4, y);
+      doc.text(doc.splitTextToSize(address, widths[3]-8) as any, xPositions[3]+4, y);
+      y += rowH;
+    };
+
+    patients.forEach(p => drawRow(
+      p.fullName || '',
+      p.phoneNumber || '',
+      p.email || '',
+      p.address || ''
+    ));
+
+    doc.save(`patients_${new Date().getTime()}.pdf`);
+  };
 
   useEffect(() => {
     // Subscribe to real-time patient updates
@@ -87,10 +194,16 @@ export default function PatientsPage() {
           <h1 className="text-3xl font-bold">Patients</h1>
           <p className="text-muted-foreground mt-1">Manage patient records</p>
         </div>
-        <Button onClick={() => navigate('/patients/new')}>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Patient
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={exportPatientsPdf}>
+            <Download className="w-4 h-4 mr-2" />
+            Download PDF
+          </Button>
+          <Button onClick={() => navigate('/patients/new')}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Patient
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -166,7 +279,7 @@ export default function PatientsPage() {
                       );
                     })()}
                     <div className="text-xs text-muted-foreground mt-2">
-                      Updated on {new Date(patient.updatedAt || patient.createdAt).toLocaleDateString()}
+                      Updated on {new Date(patient.updatedAt || patient.createdAt).toLocaleDateString('en-GB')}
                     </div>
                   </CardContent>
                 </Card>

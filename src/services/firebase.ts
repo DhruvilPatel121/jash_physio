@@ -180,7 +180,7 @@ export const getPatientVisits = async (patientId: string): Promise<Visit[]> => {
   snapshot.forEach((childSnapshot) => {
     visits.push(childSnapshot.val());
   });
-  return visits.sort((a, b) => b.visitDate - a.visitDate);
+  return visits.sort((a, b) => (b.visitDate - a.visitDate) || (b.createdAt - a.createdAt));
 };
 
 export const getAllVisits = async (): Promise<Visit[]> => {

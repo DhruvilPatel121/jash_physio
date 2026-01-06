@@ -586,7 +586,7 @@ export default function PatientDetailPage() {
             }
 
             return (
-              <div className="space-y-3">
+              <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
                 {items.map((v) => {
                   const o = obsByVisit[v.id];
                   const ex = exByVisit[v.id];
@@ -596,7 +596,7 @@ export default function PatientDetailPage() {
                       <div>
                         <div>
                           <div className="font-semibold">📌 New case</div>
-                          <div className="text-sm text-muted-foreground">🗓️ {new Date(v.visitDate).toLocaleDateString()} • by {v.attendingStaffName}</div>
+                          <div className="text-sm text-muted-foreground">🗓️ {new Date(v.visitDate).toLocaleDateString('en-GB')} • by {v.attendingStaffName}</div>
                           <div className="mt-2 text-sm"><span className="font-medium">🪪 Name:</span> {patient.fullName}</div>
                           <div className="mt-1 text-sm"><span className="font-medium">📒 Complaint:</span> {v.chiefComplaint}</div>
                           <div className="mt-2">
@@ -645,82 +645,82 @@ export default function PatientDetailPage() {
       </Card>
 
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
-        <Card className="lg:col-span-1">
+        <Card className="lg:col-span-3">
           <CardHeader>
             <CardTitle>Personal Information</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center gap-3">
-              <Phone className="w-4 h-4 text-muted-foreground" />
-              <div>
-                <p className="text-sm text-muted-foreground">Phone</p>
-                <p className="font-medium">{patient.phoneNumber}</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Row 1: Name | Phone */}
+              <div className="flex items-center gap-3">
+                <User className="w-4 h-4 text-muted-foreground" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Name</p>
+                  <p className="font-medium">{patient.fullName}</p>
+                </div>
               </div>
-            </div>
-            {patient.email && (
+              <div className="flex items-center gap-3">
+                <Phone className="w-4 h-4 text-muted-foreground" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Phone</p>
+                  <p className="font-medium">{patient.phoneNumber}</p>
+                </div>
+              </div>
+
+              {/* Row 2: Email | Address */}
               <div className="flex items-center gap-3">
                 <Mail className="w-4 h-4 text-muted-foreground" />
                 <div>
                   <p className="text-sm text-muted-foreground">Email</p>
-                  <p className="font-medium">{patient.email}</p>
+                  <p className="font-medium">{patient.email || '—'}</p>
                 </div>
               </div>
-            )}
-            {patient.address && (
               <div className="flex items-center gap-3">
                 <MapPin className="w-4 h-4 text-muted-foreground" />
                 <div>
                   <p className="text-sm text-muted-foreground">Address</p>
-                  <p className="font-medium">{patient.address}</p>
+                  <p className="font-medium">{patient.address || '—'}</p>
                 </div>
               </div>
-            )}
-            <div className="flex items-center gap-3">
-              <User className="w-4 h-4 text-muted-foreground" />
-              <div>
-                <p className="text-sm text-muted-foreground">Age / Gender</p>
-                <p className="font-medium">
-                  {patient.age ? `${patient.age} years` : "N/A"}
-                  {patient.gender && ` • ${patient.gender}`}
-                </p>
+
+              {/* Row 3: Age/Gender | Emergency */}
+              <div className="flex items-center gap-3">
+                <User className="w-4 h-4 text-muted-foreground" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Age / Gender</p>
+                  <p className="font-medium">
+                    {patient.age ? `${patient.age} years` : 'N/A'}
+                    {patient.gender && ` • ${patient.gender}`}
+                  </p>
+                </div>
               </div>
-            </div>
-            {patient.emergencyContact && (
               <div className="flex items-center gap-3">
                 <Phone className="w-4 h-4 text-muted-foreground" />
                 <div>
-                  <p className="text-sm text-muted-foreground">
-                    Emergency Contact
-                  </p>
-                  <p className="font-medium">{patient.emergencyContact}</p>
+                  <p className="text-sm text-muted-foreground">Emergency Contact</p>
+                  <p className="font-medium">{patient.emergencyContact || '—'}</p>
                 </div>
               </div>
-            )}
-            {patient.medicalHistory && (
+
+              {/* Row 4: Medical History | Current Medications */}
               <div>
-                <p className="text-sm text-muted-foreground mb-1">
-                  Medical History
-                </p>
-                <p className="text-sm">{patient.medicalHistory}</p>
+                <p className="text-sm text-muted-foreground mb-1">Medical History</p>
+                <p className="text-sm">{patient.medicalHistory || '—'}</p>
               </div>
-            )}
-            {patient.currentMedications && (
               <div>
-                <p className="text-sm text-muted-foreground mb-1">
-                  Current Medications
-                </p>
-                <p className="text-sm">{patient.currentMedications}</p>
+                <p className="text-sm text-muted-foreground mb-1">Current Medications</p>
+                <p className="text-sm">{patient.currentMedications || '—'}</p>
               </div>
-            )}
+            </div>
             <div className="pt-4 border-t space-y-1">
               <p className="text-xs text-muted-foreground">
                 Added by {patient.createdByName} on{" "}
-                {new Date(patient.createdAt).toLocaleDateString()}
+                {new Date(patient.createdAt).toLocaleDateString('en-GB')}
               </p>
               {patient.updatedByName && patient.updatedAt && (
                 <p className="text-xs text-muted-foreground">
                   Last updated by {patient.updatedByName} on{" "}
-                  {new Date(patient.updatedAt).toLocaleDateString()}
+                  {new Date(patient.updatedAt).toLocaleDateString('en-GB')}
                 </p>
               )}
             </div>
