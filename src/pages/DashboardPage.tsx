@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Calendar, FileText } from 'lucide-react';
+import { Users, Calendar } from 'lucide-react';
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -16,7 +16,7 @@ export default function DashboardPage() {
         <CardHeader>
           <CardTitle>Quick Actions</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        <CardContent className="grid gap-4 grid-cols-1 md:grid-cols-2">
           <button
             onClick={() => navigate('/patients/new')}
             className="p-4 border rounded-lg hover:bg-sky-50 transition-colors text-left"
@@ -32,14 +32,6 @@ export default function DashboardPage() {
             <Calendar className="w-6 h-6 text-sky-600 mb-2" />
             <h3 className="font-semibold">View Patients</h3>
             <p className="text-sm text-muted-foreground">Browse all patients</p>
-          </button>
-          <button
-            onClick={() => navigate('/patients')}
-            className="p-4 border rounded-lg hover:bg-sky-50 transition-colors text-left"
-          >
-            <FileText className="w-6 h-6 text-sky-600 mb-2" />
-            <h3 className="font-semibold">Search Records</h3>
-            <p className="text-sm text-muted-foreground">Find patient records</p>
           </button>
         </CardContent>
       </Card>
