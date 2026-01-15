@@ -46,7 +46,7 @@ export interface User {
 export interface Patient {
   id: string;
   fullName: string;
-  phoneNumber: string;
+  phoneNumber?: string;
   email?: string;
   address?: string;
   age?: number;
@@ -55,6 +55,15 @@ export interface Patient {
   emergencyContact?: string;
   medicalHistory?: string;
   currentMedications?: string;
+  // Clinical fields captured at registration
+  complaint?: string; // chief complaint
+  investigation?: string; // MRI/X-ray/other investigation notes
+  diagnosis?: string; // doctor diagnosis summary
+  precautions?: string; // warnings and precautions
+  treatmentPlan?: {
+    electroTherapy?: string[];
+    exerciseTherapy?: string[];
+  };
   createdBy: string;
   createdByName: string;
   createdAt: number;

@@ -45,9 +45,6 @@ import {
   Edit,
   Trash2,
   Plus,
-  Phone,
-  Mail,
-  MapPin,
   Calendar,
   User,
   Loader2,
@@ -651,7 +648,7 @@ export default function PatientDetailPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Row 1: Name | Phone */}
+              {/* Row 1: Name | Age / Gender */}
               <div className="flex items-center gap-3">
                 <User className="w-4 h-4 text-muted-foreground" />
                 <div>
@@ -659,31 +656,6 @@ export default function PatientDetailPage() {
                   <p className="font-medium">{patient.fullName}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <Phone className="w-4 h-4 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Phone</p>
-                  <p className="font-medium">{patient.phoneNumber}</p>
-                </div>
-              </div>
-
-              {/* Row 2: Email | Address */}
-              <div className="flex items-center gap-3">
-                <Mail className="w-4 h-4 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Email</p>
-                  <p className="font-medium">{patient.email || '—'}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <MapPin className="w-4 h-4 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Address</p>
-                  <p className="font-medium">{patient.address || '—'}</p>
-                </div>
-              </div>
-
-              {/* Row 3: Age/Gender | Emergency */}
               <div className="flex items-center gap-3">
                 <User className="w-4 h-4 text-muted-foreground" />
                 <div>
@@ -694,22 +666,48 @@ export default function PatientDetailPage() {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <Phone className="w-4 h-4 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Emergency Contact</p>
-                  <p className="font-medium">{patient.emergencyContact || '—'}</p>
-                </div>
-              </div>
 
-              {/* Row 4: Medical History | Current Medications */}
+              {/* Row 2: Medical History | Complaint */}
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Medical History</p>
                 <p className="text-sm">{patient.medicalHistory || '—'}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground mb-1">Current Medications</p>
-                <p className="text-sm">{patient.currentMedications || '—'}</p>
+                <p className="text-sm text-muted-foreground mb-1">Complaint</p>
+                <p className="text-sm">{patient.complaint || '—'}</p>
+              </div>
+
+              {/* Row 3: Investigation | My diagnosis */}
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Investigation</p>
+                <p className="text-sm">{patient.investigation || '—'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">My diagnosis</p>
+                <p className="text-sm">{patient.diagnosis || '—'}</p>
+              </div>
+
+              {/* Row 4: Precautions | Treatment Plan */}
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Precautions</p>
+                <p className="text-sm">{patient.precautions || '—'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Treatment Plan</p>
+                <div className="text-sm space-y-1">
+                  <div>
+                    <span className="font-medium">Electro therapy:</span>{' '}
+                    {patient.treatmentPlan?.electroTherapy?.length
+                      ? patient.treatmentPlan.electroTherapy.join(', ')
+                      : '—'}
+                  </div>
+                  <div>
+                    <span className="font-medium">Exercise therapy:</span>{' '}
+                    {patient.treatmentPlan?.exerciseTherapy?.length
+                      ? patient.treatmentPlan.exerciseTherapy.join(', ')
+                      : '—'}
+                  </div>
+                </div>
               </div>
             </div>
             <div className="pt-4 border-t space-y-1">

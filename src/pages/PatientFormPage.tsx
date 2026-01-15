@@ -23,16 +23,20 @@ export default function PatientFormPage() {
 
   const [formData, setFormData] = useState({
     fullName: '',
-    phoneNumber: '',
-    email: '',
-    address: '',
     age: '',
-    dateOfBirth: '',
     gender: '',
-    emergencyContact: '',
     medicalHistory: '',
-    currentMedications: ''
+    complaint: '',
+    investigation: '',
+    diagnosis: '',
+    precautions: ''
   });
+
+  // Treatment plan toggles + custom text
+  const [useElectro, setUseElectro] = useState(false);
+  const [useExercise, setUseExercise] = useState(false);
+  const [electroText, setElectroText] = useState('');
+  const [exerciseText, setExerciseText] = useState('');
 
   useEffect(() => {
     if (isEdit && id) {
@@ -46,16 +50,20 @@ export default function PatientFormPage() {
       if (patient) {
         setFormData({
           fullName: patient.fullName,
-          phoneNumber: patient.phoneNumber,
-          email: patient.email || '',
-          address: patient.address || '',
           age: patient.age?.toString() || '',
-          dateOfBirth: patient.dateOfBirth || '',
           gender: patient.gender || '',
-          emergencyContact: patient.emergencyContact || '',
           medicalHistory: patient.medicalHistory || '',
-          currentMedications: patient.currentMedications || ''
+          complaint: patient.complaint || '',
+          investigation: patient.investigation || '',
+          diagnosis: patient.diagnosis || '',
+          precautions: patient.precautions || ''
         });
+        const et = patient.treatmentPlan?.electroTherapy || [];
+        const xt = patient.treatmentPlan?.exerciseTherapy || [];
+        setUseElectro(!!et.length);
+        setUseExercise(!!xt.length);
+        setElectroText(et.length ? et.join(', ') : '');
+        setExerciseText(xt.length ? xt.join(', ') : '');
       }
     } catch (error) {
       toast({
@@ -68,13 +76,15 @@ export default function PatientFormPage() {
     }
   };
 
+  // no-op helper removed (previous multi-select)
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.fullName || !formData.phoneNumber) {
+    if (!formData.fullName) {
       toast({
         title: 'Error',
-        description: 'Please fill in all required fields',
+        description: 'Full name is required',
         variant: 'destructive'
       });
       return;
@@ -85,13 +95,26 @@ export default function PatientFormPage() {
     setLoading(true);
 
     try {
+      const payload: Partial<Patient> = {
+        fullName: formData.fullName,
+        age: formData.age ? parseInt(formData.age) : undefined,
+        gender: formData.gender as 'male' | 'female' | 'other' | undefined,
+        medicalHistory: formData.medicalHistory || undefined,
+        complaint: formData.complaint || undefined,
+        investigation: formData.investigation || undefined,
+        diagnosis: formData.diagnosis || undefined,
+        precautions: formData.precautions || undefined,
+        treatmentPlan: {
+          electroTherapy: useElectro && electroText.trim() ? [electroText.trim()] : undefined,
+          exerciseTherapy: useExercise && exerciseText.trim() ? [exerciseText.trim()] : undefined,
+        },
+      };
+
       if (isEdit && id) {
         await updatePatient(id, {
-          ...formData,
-          age: formData.age ? parseInt(formData.age) : undefined,
-          gender: formData.gender as 'male' | 'female' | 'other' | undefined,
+          ...payload,
           updatedBy: user.uid,
-          updatedByName: user.name
+          updatedByName: user.name,
         });
         toast({
           title: 'Success',
@@ -99,14 +122,12 @@ export default function PatientFormPage() {
         });
       } else {
         await createPatient({
-          ...formData,
-          age: formData.age ? parseInt(formData.age) : undefined,
-          gender: formData.gender as 'male' | 'female' | 'other' | undefined,
+          ...(payload as any),
           createdBy: user.uid,
           createdByName: user.name,
           createdAt: Date.now(),
-          updatedAt: Date.now()
-        });
+          updatedAt: Date.now(),
+        } as Omit<Patient, 'id'>);
         toast({
           title: 'Success',
           description: 'Patient added successfully'
@@ -163,49 +184,6 @@ export default function PatientFormPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="phoneNumber">Phone Number *</Label>
-                <Input
-                  id="phoneNumber"
-                  type="tel"
-                  value={formData.phoneNumber}
-                  onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="emergencyContact">Emergency Contact</Label>
-                <Input
-                  id="emergencyContact"
-                  type="tel"
-                  value={formData.emergencyContact}
-                  onChange={(e) => setFormData({ ...formData, emergencyContact: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="address">Address</Label>
-              <Input
-                id="address"
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              />
-            </div>
-
-            <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
-              <div className="space-y-2">
                 <Label htmlFor="age">Age</Label>
                 <Input
                   id="age"
@@ -215,19 +193,10 @@ export default function PatientFormPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="dateOfBirth">Date of Birth</Label>
-                <Input
-                  id="dateOfBirth"
-                  type="date"
-                  value={formData.dateOfBirth}
-                  onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="gender">Gender</Label>
+                <Label htmlFor="gender">Sex / Gender</Label>
                 <Select value={formData.gender} onValueChange={(value) => setFormData({ ...formData, gender: value })}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select gender" />
+                    <SelectValue placeholder="Select" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="male">Male</SelectItem>
@@ -248,14 +217,83 @@ export default function PatientFormPage() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="currentMedications">Current Medications</Label>
-              <Textarea
-                id="currentMedications"
-                value={formData.currentMedications}
-                onChange={(e) => setFormData({ ...formData, currentMedications: e.target.value })}
-                rows={3}
-              />
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="complaint">Complain</Label>
+                <Textarea
+                  id="complaint"
+                  value={formData.complaint}
+                  onChange={(e) => setFormData({ ...formData, complaint: e.target.value })}
+                  rows={3}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="investigation">Investigation</Label>
+                <Textarea
+                  id="investigation"
+                  value={formData.investigation}
+                  onChange={(e) => setFormData({ ...formData, investigation: e.target.value })}
+                  rows={3}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="diagnosis">My diagnosis</Label>
+                <Textarea
+                  id="diagnosis"
+                  value={formData.diagnosis}
+                  onChange={(e) => setFormData({ ...formData, diagnosis: e.target.value })}
+                  rows={3}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="precautions">Precautions</Label>
+                <Textarea
+                  id="precautions"
+                  value={formData.precautions}
+                  onChange={(e) => setFormData({ ...formData, precautions: e.target.value })}
+                  rows={3}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
+              <div>
+                <Label>Treatment plan - Electro therapy</Label>
+                <div className="mt-2 space-y-2">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={useElectro} onChange={(e) => setUseElectro(e.target.checked)} />
+                    Use Electro therapy
+                  </label>
+                  {useElectro && (
+                    <Textarea
+                      value={electroText}
+                      onChange={(e) => setElectroText(e.target.value)}
+                      placeholder="Write electro therapy details (your own)"
+                      rows={3}
+                    />
+                  )}
+                </div>
+              </div>
+              <div>
+                <Label>Treatment plan - Exercise therapy</Label>
+                <div className="mt-2 space-y-2">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={useExercise} onChange={(e) => setUseExercise(e.target.checked)} />
+                    Use Exercise therapy
+                  </label>
+                  {useExercise && (
+                    <Textarea
+                      value={exerciseText}
+                      onChange={(e) => setExerciseText(e.target.value)}
+                      placeholder="Write exercise therapy details (your own)"
+                      rows={3}
+                    />
+                  )}
+                </div>
+              </div>
             </div>
 
             <div className="flex gap-4 justify-end">
