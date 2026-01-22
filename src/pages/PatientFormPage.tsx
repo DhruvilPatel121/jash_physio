@@ -105,11 +105,15 @@ export default function PatientFormPage() {
         electroTherapy?: string[];
         exerciseTherapy?: string[];
       } = {};
-      if (useElectro && electroText.trim()) {
-        treatmentPlan.electroTherapy = [electroText.trim()];
+      if (useElectro) {
+        treatmentPlan.electroTherapy = electroText.trim()
+          ? [electroText.trim()]
+          : [""];
       }
-      if (useExercise && exerciseText.trim()) {
-        treatmentPlan.exerciseTherapy = [exerciseText.trim()];
+      if (useExercise) {
+        treatmentPlan.exerciseTherapy = exerciseText.trim()
+          ? [exerciseText.trim()]
+          : [""];
       }
 
       const payload: Record<string, any> = {
