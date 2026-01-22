@@ -57,13 +57,13 @@ export default function PatientsPage() {
     doc.setFontSize(10);
     y += 20;
     const dateStr = `${new Date().toLocaleDateString(
-      "en-GB"
+      "en-GB",
     )} ${new Date().toLocaleTimeString()}`;
     doc.setTextColor(100);
     doc.text(
       `Generated on ${dateStr} • Total Patients: ${patients.length}`,
       margin,
-      y
+      y,
     );
     doc.setTextColor(0);
     y += 30;
@@ -131,7 +131,7 @@ export default function PatientsPage() {
           y += 12;
           const historyLines = doc.splitTextToSize(
             patient.medicalHistory,
-            pageWidth - margin * 2 - 20
+            pageWidth - margin * 2 - 20,
           );
           historyLines.forEach((line: string) => {
             if (y + 12 > doc.internal.pageSize.getHeight() - margin) {
@@ -149,7 +149,7 @@ export default function PatientsPage() {
           y += 12;
           const medLines = doc.splitTextToSize(
             patient.currentMedications,
-            pageWidth - margin * 2 - 20
+            pageWidth - margin * 2 - 20,
           );
           medLines.forEach((line: string) => {
             if (y + 12 > doc.internal.pageSize.getHeight() - margin) {
@@ -194,7 +194,7 @@ export default function PatientsPage() {
             doc.setFont("helvetica", "normal");
             const valueLines = doc.splitTextToSize(
               info.value,
-              pageWidth - margin * 2 - 25
+              pageWidth - margin * 2 - 25,
             );
             valueLines.forEach((line: string) => {
               if (y + 12 > doc.internal.pageSize.getHeight() - margin) {
@@ -468,7 +468,7 @@ export default function PatientsPage() {
                     <div className="text-xs text-muted-foreground mt-2">
                       Updated on{" "}
                       {new Date(
-                        patient.updatedAt || patient.createdAt
+                        patient.updatedAt || patient.createdAt,
                       ).toLocaleDateString("en-GB")}
                     </div>
                   </CardContent>

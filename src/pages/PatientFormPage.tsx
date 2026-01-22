@@ -1,16 +1,22 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
-import { createPatient, getPatient, updatePatient } from '@/services/firebase';
-import type { Patient } from '@/types';
-import { ArrowLeft, Loader2, Save } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { createPatient, getPatient, updatePatient } from "@/services/firebase";
+import type { Patient } from "@/types";
+import { ArrowLeft, Loader2, Save } from "lucide-react";
 
 export default function PatientFormPage() {
   const { id } = useParams();
@@ -22,21 +28,21 @@ export default function PatientFormPage() {
   const [loadingData, setLoadingData] = useState(isEdit);
 
   const [formData, setFormData] = useState({
-    fullName: '',
-    age: '',
-    gender: '',
-    medicalHistory: '',
-    complaint: '',
-    investigation: '',
-    diagnosis: '',
-    precautions: ''
+    fullName: "",
+    age: "",
+    gender: "",
+    medicalHistory: "",
+    complaint: "",
+    investigation: "",
+    diagnosis: "",
+    precautions: "",
   });
 
   // Treatment plan toggles + custom text
   const [useElectro, setUseElectro] = useState(false);
   const [useExercise, setUseExercise] = useState(false);
-  const [electroText, setElectroText] = useState('');
-  const [exerciseText, setExerciseText] = useState('');
+  const [electroText, setElectroText] = useState("");
+  const [exerciseText, setExerciseText] = useState("");
 
   useEffect(() => {
     if (isEdit && id) {
@@ -50,26 +56,26 @@ export default function PatientFormPage() {
       if (patient) {
         setFormData({
           fullName: patient.fullName,
-          age: patient.age?.toString() || '',
-          gender: patient.gender || '',
-          medicalHistory: patient.medicalHistory || '',
-          complaint: patient.complaint || '',
-          investigation: patient.investigation || '',
-          diagnosis: patient.diagnosis || '',
-          precautions: patient.precautions || ''
+          age: patient.age?.toString() || "",
+          gender: patient.gender || "",
+          medicalHistory: patient.medicalHistory || "",
+          complaint: patient.complaint || "",
+          investigation: patient.investigation || "",
+          diagnosis: patient.diagnosis || "",
+          precautions: patient.precautions || "",
         });
         const et = patient.treatmentPlan?.electroTherapy || [];
         const xt = patient.treatmentPlan?.exerciseTherapy || [];
         setUseElectro(!!et.length);
         setUseExercise(!!xt.length);
-        setElectroText(et.length ? et.join(', ') : '');
-        setExerciseText(xt.length ? xt.join(', ') : '');
+        setElectroText(et.length ? et.join(", ") : "");
+        setExerciseText(xt.length ? xt.join(", ") : "");
       }
     } catch (error) {
       toast({
-        title: 'Error',
-        description: 'Failed to load patient data',
-        variant: 'destructive'
+        title: "Error",
+        description: "Failed to load patient data",
+        variant: "destructive",
       });
     } finally {
       setLoadingData(false);
@@ -83,9 +89,9 @@ export default function PatientFormPage() {
 
     if (!formData.fullName) {
       toast({
-        title: 'Error',
-        description: 'Full name is required',
-        variant: 'destructive'
+        title: "Error",
+        description: "Full name is required",
+        variant: "destructive",
       });
       return;
     }
@@ -95,19 +101,28 @@ export default function PatientFormPage() {
     setLoading(true);
 
     try {
-      const payload: Partial<Patient> = {
+      const treatmentPlan: {
+        electroTherapy?: string[];
+        exerciseTherapy?: string[];
+      } = {};
+      if (useElectro && electroText.trim()) {
+        treatmentPlan.electroTherapy = [electroText.trim()];
+      }
+      if (useExercise && exerciseText.trim()) {
+        treatmentPlan.exerciseTherapy = [exerciseText.trim()];
+      }
+
+      const payload: Record<string, any> = {
         fullName: formData.fullName,
-        age: formData.age ? parseInt(formData.age) : undefined,
-        gender: formData.gender as 'male' | 'female' | 'other' | undefined,
-        medicalHistory: formData.medicalHistory || undefined,
-        complaint: formData.complaint || undefined,
-        investigation: formData.investigation || undefined,
-        diagnosis: formData.diagnosis || undefined,
-        precautions: formData.precautions || undefined,
-        treatmentPlan: {
-          electroTherapy: useElectro && electroText.trim() ? [electroText.trim()] : undefined,
-          exerciseTherapy: useExercise && exerciseText.trim() ? [exerciseText.trim()] : undefined,
-        },
+        age: formData.age ? parseInt(formData.age) : null,
+        gender: formData.gender || null,
+        medicalHistory: formData.medicalHistory || null,
+        complaint: formData.complaint || null,
+        investigation: formData.investigation || null,
+        diagnosis: formData.diagnosis || null,
+        precautions: formData.precautions || null,
+        treatmentPlan:
+          Object.keys(treatmentPlan).length > 0 ? treatmentPlan : null,
       };
 
       if (isEdit && id) {
@@ -117,8 +132,8 @@ export default function PatientFormPage() {
           updatedByName: user.name,
         });
         toast({
-          title: 'Success',
-          description: 'Patient updated successfully'
+          title: "Success",
+          description: "Patient updated successfully",
         });
       } else {
         await createPatient({
@@ -127,18 +142,18 @@ export default function PatientFormPage() {
           createdByName: user.name,
           createdAt: Date.now(),
           updatedAt: Date.now(),
-        } as Omit<Patient, 'id'>);
+        } as Omit<Patient, "id">);
         toast({
-          title: 'Success',
-          description: 'Patient added successfully'
+          title: "Success",
+          description: "Patient added successfully",
         });
       }
-      navigate('/patients');
+      navigate("/patients");
     } catch (error) {
       toast({
-        title: 'Error',
-        description: `Failed to ${isEdit ? 'update' : 'add'} patient`,
-        variant: 'destructive'
+        title: "Error",
+        description: `Failed to ${isEdit ? "update" : "add"} patient`,
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -156,13 +171,19 @@ export default function PatientFormPage() {
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/patients')}>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => navigate("/patients")}
+        >
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold">{isEdit ? 'Edit Patient' : 'Add New Patient'}</h1>
+          <h1 className="text-3xl font-bold">
+            {isEdit ? "Edit Patient" : "Add New Patient"}
+          </h1>
           <p className="text-muted-foreground mt-1">
-            {isEdit ? 'Update patient information' : 'Register a new patient'}
+            {isEdit ? "Update patient information" : "Register a new patient"}
           </p>
         </div>
       </div>
@@ -179,7 +200,9 @@ export default function PatientFormPage() {
                 <Input
                   id="fullName"
                   value={formData.fullName}
-                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, fullName: e.target.value })
+                  }
                   required
                 />
               </div>
@@ -189,12 +212,19 @@ export default function PatientFormPage() {
                   id="age"
                   type="number"
                   value={formData.age}
-                  onChange={(e) => setFormData({ ...formData, age: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, age: e.target.value })
+                  }
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="gender">Sex / Gender</Label>
-                <Select value={formData.gender} onValueChange={(value) => setFormData({ ...formData, gender: value })}>
+                <Select
+                  value={formData.gender}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, gender: value })
+                  }
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select" />
                   </SelectTrigger>
@@ -212,7 +242,9 @@ export default function PatientFormPage() {
               <Textarea
                 id="medicalHistory"
                 value={formData.medicalHistory}
-                onChange={(e) => setFormData({ ...formData, medicalHistory: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, medicalHistory: e.target.value })
+                }
                 rows={3}
               />
             </div>
@@ -223,7 +255,9 @@ export default function PatientFormPage() {
                 <Textarea
                   id="complaint"
                   value={formData.complaint}
-                  onChange={(e) => setFormData({ ...formData, complaint: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, complaint: e.target.value })
+                  }
                   rows={3}
                 />
               </div>
@@ -232,7 +266,9 @@ export default function PatientFormPage() {
                 <Textarea
                   id="investigation"
                   value={formData.investigation}
-                  onChange={(e) => setFormData({ ...formData, investigation: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, investigation: e.target.value })
+                  }
                   rows={3}
                 />
               </div>
@@ -244,7 +280,9 @@ export default function PatientFormPage() {
                 <Textarea
                   id="diagnosis"
                   value={formData.diagnosis}
-                  onChange={(e) => setFormData({ ...formData, diagnosis: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, diagnosis: e.target.value })
+                  }
                   rows={3}
                 />
               </div>
@@ -253,7 +291,9 @@ export default function PatientFormPage() {
                 <Textarea
                   id="precautions"
                   value={formData.precautions}
-                  onChange={(e) => setFormData({ ...formData, precautions: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, precautions: e.target.value })
+                  }
                   rows={3}
                 />
               </div>
@@ -264,7 +304,11 @@ export default function PatientFormPage() {
                 <Label>Treatment plan - Electro therapy</Label>
                 <div className="mt-2 space-y-2">
                   <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" checked={useElectro} onChange={(e) => setUseElectro(e.target.checked)} />
+                    <input
+                      type="checkbox"
+                      checked={useElectro}
+                      onChange={(e) => setUseElectro(e.target.checked)}
+                    />
                     Use Electro therapy
                   </label>
                   {useElectro && (
@@ -281,7 +325,11 @@ export default function PatientFormPage() {
                 <Label>Treatment plan - Exercise therapy</Label>
                 <div className="mt-2 space-y-2">
                   <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" checked={useExercise} onChange={(e) => setUseExercise(e.target.checked)} />
+                    <input
+                      type="checkbox"
+                      checked={useExercise}
+                      onChange={(e) => setUseExercise(e.target.checked)}
+                    />
                     Use Exercise therapy
                   </label>
                   {useExercise && (
@@ -297,7 +345,11 @@ export default function PatientFormPage() {
             </div>
 
             <div className="flex gap-4 justify-end">
-              <Button type="button" variant="outline" onClick={() => navigate('/patients')}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate("/patients")}
+              >
                 Cancel
               </Button>
               <Button type="submit" disabled={loading}>
@@ -309,7 +361,7 @@ export default function PatientFormPage() {
                 ) : (
                   <>
                     <Save className="mr-2 h-4 w-4" />
-                    {isEdit ? 'Update' : 'Save'} Patient
+                    {isEdit ? "Update" : "Save"} Patient
                   </>
                 )}
               </Button>
