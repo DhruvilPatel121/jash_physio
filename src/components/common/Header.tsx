@@ -111,7 +111,7 @@ export default function Header() {
               <img
                 src="images/logo/logo.png"
                 alt="Jash Physiotherapy Logo"
-                className="h-20 w-36 object-contain"
+                className="h-[4rem] object-contain"
               />
             </div>
 
