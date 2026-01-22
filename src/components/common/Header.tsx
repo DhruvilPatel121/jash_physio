@@ -53,12 +53,12 @@ export default function Header() {
                       className="h-20 w-auto object-contain"
                     />
                   </div>
-                  <div>
+                  {/* <div>
                     <h2 className="font-bold">Jash Physio</h2>
                     <p className="text-xs text-muted-foreground">
                       Patient Management
                     </p>
-                  </div>
+                  </div> */}
                 </div>
                 <nav className="flex-1 space-y-2">
                   {navItems.map((item) => (
