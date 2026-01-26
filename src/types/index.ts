@@ -64,6 +64,7 @@ export interface Patient {
     electroTherapy?: string[];
     exerciseTherapy?: string[];
   };
+  attendance?: Record<string, 'present' | 'absent'>;
   createdBy: string;
   createdByName: string;
   createdAt: number;
