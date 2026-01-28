@@ -720,9 +720,9 @@ export default function PatientDetailPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <AttendanceCalendar
-            attendance={patient?.attendance}
-            onAttendanceChange={handleAttendanceChange}
+          <AttendanceCalendar 
+            attendance={patient?.attendance} 
+            onAttendanceChange={handleAttendanceChange} 
           />
         </CardContent>
       </Card>
