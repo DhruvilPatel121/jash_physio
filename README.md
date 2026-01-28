@@ -1,6 +1,7 @@
-# Welcome to Your Miaoda Project
-Miaoda Application Link URL
-    URL:https://medo.dev/projects/app-8d59cuo3wagx
+# Welcome to Your Dhruvil's Live Project
+
+Dhruvil's Application Link
+URL : https://jash-physiotherapy-5a2e1.web.app
 
 # Jash Physiotherapy Patient Management App
 
@@ -44,6 +45,7 @@ A comprehensive web-based patient management system for physiotherapy clinics, b
 ### 2. Enable Firebase Services
 
 #### Authentication
+
 1. In Firebase Console, go to **Authentication** → **Sign-in method**
 2. Enable **Email/Password** authentication
 3. Create initial users:
@@ -51,11 +53,13 @@ A comprehensive web-based patient management system for physiotherapy clinics, b
    - Staff: `staff@jash.com` / `staff123`
 
 #### Realtime Database
+
 1. Go to **Realtime Database** → **Create Database**
 2. Start in **test mode** (we'll add security rules later)
 3. Note the database URL (e.g., `https://your-project.firebaseio.com`)
 
 #### Security Rules
+
 After testing, update your Realtime Database rules:
 
 ```json
@@ -158,6 +162,7 @@ After creating authentication users, you need to add their profiles to the Realt
 ## User Roles
 
 ### Doctor / Admin
+
 - Full access to all features
 - Can add/edit/delete patients
 - Can add doctor observations
@@ -165,6 +170,7 @@ After creating authentication users, you need to add their profiles to the Realt
 - Can delete patient records
 
 ### Staff
+
 - Can add new patients
 - Can add visit history
 - Can create prescriptions and exercise plans
@@ -199,17 +205,20 @@ src/
 ## Key Features Explained
 
 ### Patient Registration
+
 - Required fields: Full Name, Phone Number
 - Optional fields: Email, Address, Age, DOB, Gender, Emergency Contact, Medical History, Current Medications
 - Tracks who created the record and when
 
 ### Visit History
+
 - Record visit date, chief complaint, pain severity (1-10 scale)
 - Track duration of problem and previous treatments
 - Add visit notes
 - Links to patient record
 
 ### Doctor Observations
+
 - **Doctor-only feature**
 - Examination findings
 - Diagnosis
@@ -219,16 +228,19 @@ src/
 - Doctor notes
 
 ### Prescriptions
+
 - Add multiple medicines per prescription
 - Each medicine includes: name, dosage, frequency, duration, instructions
 - Linked to specific visit
 
 ### Exercise Plans
+
 - Add multiple exercises per plan
 - Each exercise includes: name, repetitions, sets, frequency, duration
 - Linked to specific visit
 
 ### Real-time Synchronization
+
 - Changes are instantly visible to all logged-in users
 - Uses Firebase Realtime Database listeners
 - Automatic updates without page refresh
@@ -236,11 +248,13 @@ src/
 ## Mobile Responsiveness
 
 The application is fully responsive and optimized for:
+
 - Desktop (1920x1080, 1366x768, 1440x900)
 - Laptop (1280x720, 1536x864)
 - Mobile (375x667, 414x896, 430x932)
 
 Mobile features:
+
 - Hamburger menu navigation
 - Touch-optimized UI
 - Responsive forms and cards
@@ -249,6 +263,7 @@ Mobile features:
 ## Firebase Free Tier Limits
 
 The application is designed to work within Firebase free tier:
+
 - **Authentication**: 10,000 phone authentications/month (unlimited email)
 - **Realtime Database**: 1 GB storage, 10 GB/month download
 - **Storage**: 5 GB storage, 1 GB/day download
@@ -266,15 +281,18 @@ For a clinic with 1 doctor and 10 staff members, these limits are sufficient for
 ## Troubleshooting
 
 ### "Permission Denied" errors
+
 - Check Firebase security rules
 - Ensure user is authenticated
 - Verify user role in database
 
 ### User profile not loading
+
 - Ensure user profile exists in Realtime Database under `users/{uid}`
 - Check that `uid` matches Firebase Authentication uid
 
 ### Real-time updates not working
+
 - Check Firebase Realtime Database connection
 - Verify database URL in environment variables
 - Check browser console for errors
@@ -298,6 +316,7 @@ For a clinic with 1 doctor and 10 staff members, these limits are sufficient for
 ## Support
 
 For issues or questions:
+
 1. Check Firebase Console for errors
 2. Review browser console logs
 3. Verify environment configuration
@@ -305,8 +324,8 @@ For issues or questions:
 
 ## License
 
-Copyright © 2025 Jash Physiotherapy
+Copyright © 2025 Dhruvil Patel
 
 ---
 
-**Note**: This is a web application (not React Native). It works on mobile browsers and can be installed as a Progressive Web App (PWA) for a native-like experience on Android devices.
+**Note**: This is a web application. It works on mobile browsers and can be installed for a Android & iOS devices.
