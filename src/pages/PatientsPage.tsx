@@ -436,6 +436,7 @@ export default function PatientsPage() {
                   <CardContent className="space-y-2">
                     {(() => {
                       const note = latestCaseNoteByPatient[patient.id];
+
                       return (
                         <div className="space-y-1">
                           <div className="text-sm">
@@ -443,7 +444,7 @@ export default function PatientsPage() {
                               Complaint:
                             </span>{" "}
                             <span className="text-muted-foreground line-clamp-2">
-                              {note?.complaint || "—"}
+                              {note?.complaint || patient.complaint || "—"}
                             </span>
                           </div>
                           <div className="text-sm">
@@ -451,7 +452,7 @@ export default function PatientsPage() {
                               Diagnosis:
                             </span>{" "}
                             <span className="text-muted-foreground line-clamp-2">
-                              {note?.diagnosis || "—"}
+                              {note?.diagnosis || patient.diagnosis || "—"}
                             </span>
                           </div>
                           <div className="text-sm">
@@ -459,7 +460,8 @@ export default function PatientsPage() {
                               Rx plan:
                             </span>{" "}
                             <span className="text-muted-foreground line-clamp-2">
-                              {note?.rxPlan || "—"}
+                              {/* Always show dash as requested, avoiding detailed treatment plan display */}
+                              {"—"}
                             </span>
                           </div>
                         </div>

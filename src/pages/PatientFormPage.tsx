@@ -36,6 +36,7 @@ export default function PatientFormPage() {
     investigation: "",
     diagnosis: "",
     precautions: "",
+    paymentDetails: "",
   });
 
   // Treatment plan toggles + custom text
@@ -63,13 +64,14 @@ export default function PatientFormPage() {
           investigation: patient.investigation || "",
           diagnosis: patient.diagnosis || "",
           precautions: patient.precautions || "",
+          paymentDetails: patient.paymentDetails || "",
         });
         const et = patient.treatmentPlan?.electroTherapy || [];
         const xt = patient.treatmentPlan?.exerciseTherapy || [];
         setUseElectro(!!et.length);
         setUseExercise(!!xt.length);
-        setElectroText(et.length ? et.join(", ") : "");
-        setExerciseText(xt.length ? xt.join(", ") : "");
+        setElectroText(et.length ? et.join("\n") : "");
+        setExerciseText(xt.length ? xt.join("\n") : "");
       }
     } catch (error) {
       toast({
@@ -106,13 +108,15 @@ export default function PatientFormPage() {
         exerciseTherapy?: string[];
       } = {};
       if (useElectro) {
-        treatmentPlan.electroTherapy = electroText.trim()
-          ? [electroText.trim()]
+        // Preserving empty lines for spacing by just splitting on newline
+        treatmentPlan.electroTherapy = electroText
+          ? electroText.split("\n")
           : [""];
       }
       if (useExercise) {
-        treatmentPlan.exerciseTherapy = exerciseText.trim()
-          ? [exerciseText.trim()]
+        // Preserving empty lines for spacing by just splitting on newline
+        treatmentPlan.exerciseTherapy = exerciseText
+          ? exerciseText.split("\n")
           : [""];
       }
 
@@ -125,6 +129,7 @@ export default function PatientFormPage() {
         investigation: formData.investigation || null,
         diagnosis: formData.diagnosis || null,
         precautions: formData.precautions || null,
+        paymentDetails: formData.paymentDetails || null,
         treatmentPlan:
           Object.keys(treatmentPlan).length > 0 ? treatmentPlan : null,
       };
@@ -238,6 +243,18 @@ export default function PatientFormPage() {
                     <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="paymentDetails">Payment Details</Label>
+                <Textarea
+                  id="paymentDetails"
+                  value={formData.paymentDetails}
+                  onChange={(e) =>
+                    setFormData({ ...formData, paymentDetails: e.target.value })
+                  }
+                  placeholder="Enter details"
+                  rows={2}
+                />
               </div>
             </div>
 

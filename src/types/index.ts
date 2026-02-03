@@ -60,6 +60,8 @@ export interface Patient {
   investigation?: string; // MRI/X-ray/other investigation notes
   diagnosis?: string; // doctor diagnosis summary
   precautions?: string; // warnings and precautions
+  paymentDetails?: string; // payment details (numeric only) - from Personal Info
+  attendancePaymentDetails?: string; // payment details displayed above attendance
   treatmentPlan?: {
     electroTherapy?: string[];
     exerciseTherapy?: string[];

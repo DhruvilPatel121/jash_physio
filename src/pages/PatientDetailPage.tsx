@@ -7,6 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -107,11 +113,132 @@ export default function PatientDetailPage() {
   const [xrayFinding, setXrayFinding] = useState("");
   const [exerciseProtocol, setExerciseProtocol] = useState("");
 
+  const [editTreatmentPlanOpen, setEditTreatmentPlanOpen] = useState(false);
+  const [treatmentPlanForm, setTreatmentPlanForm] = useState({
+    electroTherapy: "",
+    exerciseTherapy: "",
+  });
+
+  const [addExerciseDialogOpen, setAddExerciseDialogOpen] = useState(false);
+  const [newExerciseText, setNewExerciseText] = useState("");
+
+  const [editPaymentDetailsOpen, setEditPaymentDetailsOpen] = useState(false);
+  const [paymentDetailsText, setPaymentDetailsText] = useState("");
+
   useEffect(() => {
     if (id) {
       loadPatientData();
     }
   }, [id]);
+
+  const openEditTreatmentPlan = () => {
+    setTreatmentPlanForm({
+      electroTherapy: patient?.treatmentPlan?.electroTherapy?.join("\n") || "",
+      exerciseTherapy:
+        patient?.treatmentPlan?.exerciseTherapy?.join("\n\n") || "",
+    });
+    setEditTreatmentPlanOpen(true);
+  };
+
+  const saveTreatmentPlan = async () => {
+    if (!patient || !id) return;
+    try {
+      const electro = treatmentPlanForm.electroTherapy.split("\n");
+      const exercise = treatmentPlanForm.exerciseTherapy.split("\n\n");
+
+      await updatePatient(id, {
+        treatmentPlan: {
+          electroTherapy: electro,
+          exerciseTherapy: exercise,
+        },
+      });
+
+      // Optimistic update
+      setPatient({
+        ...patient,
+        treatmentPlan: {
+          electroTherapy: electro,
+          exerciseTherapy: exercise,
+        },
+      });
+
+      setEditTreatmentPlanOpen(false);
+      toast({ title: "Success", description: "Treatment plan updated" });
+    } catch (e) {
+      toast({
+        title: "Error",
+        description: "Failed to update treatment plan",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const openAddExercise = () => {
+    setNewExerciseText("");
+    setAddExerciseDialogOpen(true);
+  };
+
+  const saveNewExercise = async () => {
+    if (!patient || !id || !newExerciseText.trim()) return;
+    try {
+      const existingExercises = patient.treatmentPlan?.exerciseTherapy || [];
+      // Simply prepend the new exercise text as a new block
+      // No automatic date headers or bullet points
+      const newExercises = [newExerciseText.trim(), ...existingExercises];
+
+      await updatePatient(id, {
+        treatmentPlan: {
+          ...(patient.treatmentPlan || {}),
+          exerciseTherapy: newExercises,
+        },
+      });
+
+      setPatient({
+        ...patient,
+        treatmentPlan: {
+          ...(patient.treatmentPlan || {}),
+          exerciseTherapy: newExercises,
+        },
+      });
+
+      setAddExerciseDialogOpen(false);
+      toast({ title: "Success", description: "Exercise added successfully" });
+    } catch (e) {
+      toast({
+        title: "Error",
+        description: "Failed to add exercise",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const openEditPaymentDetails = () => {
+    setPaymentDetailsText(patient?.attendancePaymentDetails || "");
+    setEditPaymentDetailsOpen(true);
+  };
+
+  const savePaymentDetails = async () => {
+    if (!patient || !id) return;
+    try {
+      await updatePatient(id, {
+        attendancePaymentDetails: paymentDetailsText,
+      });
+
+      setPatient({
+        ...patient,
+        attendancePaymentDetails: paymentDetailsText,
+      });
+
+      setEditPaymentDetailsOpen(false);
+      toast({ title: "Success", description: "Payment details updated" });
+    } catch (e) {
+      toast({
+        title: "Error",
+        description: "Failed to update payment details",
+        variant: "destructive",
+      });
+    }
+  };
 
   const loadPatientData = async () => {
     try {
@@ -695,10 +822,6 @@ export default function PatientDetailPage() {
             <Edit className="w-4 h-4 mr-2" />
             Edit
           </Button>
-          <Button onClick={openAddVisit}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Visit
-          </Button>
           {canDeletePatient() && (
             <Button
               variant="destructive"
@@ -711,6 +834,21 @@ export default function PatientDetailPage() {
         </div>
       </div>
 
+      {/* Payment Details Card */}
+      <Card className="mb-8">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle>Payment Details</CardTitle>
+          <Button variant="ghost" size="icon" onClick={openEditPaymentDetails}>
+            <Edit className="w-4 h-4" />
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <div className="whitespace-pre-wrap text-sm border rounded-md p-3 bg-slate-50 min-h-[60px]">
+            {patient.attendancePaymentDetails || "—"}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Attendance Calendar */}
       <Card>
         <CardHeader>
@@ -720,404 +858,230 @@ export default function PatientDetailPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <AttendanceCalendar 
-            attendance={patient?.attendance} 
-            onAttendanceChange={handleAttendanceChange} 
+          <AttendanceCalendar
+            attendance={patient.attendance || {}}
+            onAttendanceChange={handleAttendanceChange}
           />
         </CardContent>
       </Card>
 
-      {/* Unified newest-first timeline (visit-wise cards) */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Timeline</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {(() => {
-            // Build latest observation/exercise per visit
-            const obsByVisit: Record<string, DoctorObservation> = {};
-            observations.forEach((o) => {
-              if (!obsByVisit[o.visitId]) obsByVisit[o.visitId] = o;
-            });
-            const exByVisit: Record<string, ExercisePlan> = {};
-            exercisePlans.forEach((ex) => {
-              if (!exByVisit[ex.visitId]) exByVisit[ex.visitId] = ex;
-            });
-
-            const items = [...visits].sort((a, b) => b.visitDate - a.visitDate);
-            if (!items.length) {
-              return (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>
-                    No records yet. Start by adding a visit, diagnosis or
-                    exercises.
-                  </p>
-                </div>
-              );
-            }
-
-            return (
-              <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
-                {items.map((v) => {
-                  const o = obsByVisit[v.id];
-                  const ex = exByVisit[v.id];
-                  return (
-                    <div key={v.id} className="p-4 border rounded-lg">
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <div>
-                            <div className="font-semibold">📌 New case</div>
-                            <div className="text-sm text-muted-foreground">
-                              🗓️{" "}
-                              {new Date(v.visitDate).toLocaleDateString(
-                                "en-GB",
-                              )}{" "}
-                              • by {v.attendingStaffName}
-                            </div>
-                            <div className="mt-2 text-sm">
-                              <span className="font-medium">🪪 Name:</span>{" "}
-                              {patient.fullName}
-                            </div>
-                            <div className="mt-1 text-sm">
-                              <span className="font-medium">📒 Complaint:</span>{" "}
-                              {v.chiefComplaint}
-                            </div>
-                            <div className="mt-2">
-                              {o?.diagnosis && (
-                                <div className="text-sm">
-                                  <span className="font-medium">
-                                    📝 My diagnosis:
-                                  </span>{" "}
-                                  {o.diagnosis}
-                                </div>
-                              )}
-                              {/* Parse MRI/X-ray from findings, always render both lines */}
-                              {(() => {
-                                const findings = o?.examinationFindings || "";
-                                let mriText = "";
-                                let xrayText = "";
-                                const otherLines: string[] = [];
-                                findings.split("\n").forEach((line) => {
-                                  const t = line.trim();
-                                  if (/^MRI\s*:/.test(t))
-                                    mriText = t.replace(/^MRI\s*:\s*/i, "");
-                                  else if (/^X-?ray\s*:/.test(t))
-                                    xrayText = t.replace(/^X-?ray\s*:\s*/i, "");
-                                  else if (t) otherLines.push(t);
-                                });
-                                return (
-                                  <div className="mt-1 text-sm">
-                                    <div>▫️MRI Finding: {mriText}</div>
-                                    <div>▫️ X-ray finding: {xrayText}</div>
-                                    {otherLines.map((line, i) => (
-                                      <div key={i}>▫️ {line}</div>
-                                    ))}
-                                  </div>
-                                );
-                              })()}
-                              {o?.warningsAndPrecautions && (
-                                <div className="mt-1 text-sm">
-                                  🛑 Precautions: {o.warningsAndPrecautions}
-                                </div>
-                              )}
-                              {o?.treatmentPlan && (
-                                <div className="mt-1 text-sm">
-                                  ✳️ Rx plan: {o.treatmentPlan}
-                                </div>
-                              )}
-                            </div>
-                            <div className="mt-2">
-                              <div className="text-sm">
-                                ❇️ Exercise protocol:{" "}
-                                {ex?.exercises?.[0]?.name || ""}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => openEditVisit(v)}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => removeVisit(v.id)}
-                          >
-                            Delete
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })()}
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
-        <Card className="lg:col-span-3">
-          <CardHeader>
-            <CardTitle>Personal Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Row 1: Name | Age / Gender */}
-              <div className="flex items-center gap-3">
-                <User className="w-4 h-4 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Name</p>
-                  <p className="font-medium">{patient.fullName}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <User className="w-4 h-4 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Age / Gender</p>
-                  <p className="font-medium">
-                    {patient.age ? `${patient.age} years` : "N/A"}
-                    {patient.gender && ` • ${patient.gender}`}
-                  </p>
-                </div>
-              </div>
-
-              {/* Row 2: Medical History | Complaint */}
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">
-                  Medical History
-                </p>
-                <p className="text-sm">{patient.medicalHistory || "—"}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">Complaint</p>
-                <p className="text-sm">{patient.complaint || "—"}</p>
-              </div>
-
-              {/* Row 3: Investigation | My diagnosis */}
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">
-                  Investigation
-                </p>
-                <p className="text-sm">{patient.investigation || "—"}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">
-                  My diagnosis
-                </p>
-                <p className="text-sm">{patient.diagnosis || "—"}</p>
-              </div>
-
-              {/* Row 4: Precautions | Treatment Plan */}
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">
-                  Precautions
-                </p>
-                <p className="text-sm">{patient.precautions || "—"}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">
-                  Treatment Plan
-                </p>
-                <div className="text-sm space-y-1">
-                  <div>
-                    <span className="font-medium">Electro therapy:</span>{" "}
-                    {patient.treatmentPlan?.electroTherapy?.length
-                      ? patient.treatmentPlan.electroTherapy.join(", ")
-                      : "—"}
-                  </div>
-                  <div>
-                    <span className="font-medium">Exercise therapy:</span>{" "}
-                    {patient.treatmentPlan?.exerciseTherapy?.length
-                      ? patient.treatmentPlan.exerciseTherapy.join(", ")
-                      : "—"}
-                  </div>
-                </div>
-              </div>
+      <Accordion type="single" collapsible className="space-y-6">
+        <AccordionItem
+          value="personal"
+          className="rounded-xl border bg-white shadow-sm"
+        >
+          <AccordionTrigger className="px-5">
+            <div className="flex items-center justify-between w-full">
+              <span className="text-base font-semibold">
+                Personal Information
+              </span>
             </div>
-            <div className="pt-4 border-t space-y-1">
-              <p className="text-xs text-muted-foreground">
-                Added by {patient.createdByName} on{" "}
-                {new Date(patient.createdAt).toLocaleDateString("en-GB")}
-              </p>
-              {patient.updatedByName && patient.updatedAt && (
+          </AccordionTrigger>
+          <AccordionContent>
+            <div className="px-5 pb-5 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="flex items-center gap-3">
+                  <User className="w-4 h-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Name</p>
+                    <p className="font-medium">{patient.fullName}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <User className="w-4 h-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">
+                      Age / Gender
+                    </p>
+                    <p className="font-medium">
+                      {patient.age ? `${patient.age} years` : "N/A"}
+                      {patient.gender && ` • ${patient.gender}`}
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">
+                    Medical History
+                  </p>
+                  <p className="text-sm">{patient.medicalHistory || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">
+                    Complaint
+                  </p>
+                  <p className="text-sm">{patient.complaint || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">
+                    Investigation
+                  </p>
+                  <p className="text-sm">{patient.investigation || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">
+                    My diagnosis
+                  </p>
+                  <p className="text-sm">{patient.diagnosis || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">
+                    Precautions
+                  </p>
+                  <p className="text-sm">{patient.precautions || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">
+                    Payment Details
+                  </p>
+                  <p className="text-sm font-mono whitespace-pre-wrap">
+                    {patient.paymentDetails || "—"}
+                  </p>
+                </div>
+              </div>
+              <div className="pt-4 border-t space-y-1">
                 <p className="text-xs text-muted-foreground">
-                  Last updated by {patient.updatedByName} on{" "}
-                  {new Date(patient.updatedAt).toLocaleDateString("en-GB")}
+                  Added by {patient.createdByName} on{" "}
+                  {new Date(patient.createdAt).toLocaleDateString("en-GB")}
                 </p>
-              )}
+                {patient.updatedByName && patient.updatedAt && (
+                  <p className="text-xs text-muted-foreground">
+                    Last updated by {patient.updatedByName} on{" "}
+                    {new Date(patient.updatedAt).toLocaleDateString("en-GB")}
+                  </p>
+                )}
+              </div>
             </div>
-          </CardContent>
-        </Card>
+          </AccordionContent>
+        </AccordionItem>
 
-        {false && (
-          <Card className="lg:col-span-2">
-            <CardContent className="pt-6">
-              <Tabs defaultValue="visits" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="visits">
-                    Visits ({visits.length})
-                  </TabsTrigger>
-                  <TabsTrigger value="prescriptions">
-                    Prescriptions ({prescriptions.length})
-                  </TabsTrigger>
-                  <TabsTrigger value="exercises">
-                    Exercises ({exercisePlans.length})
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="visits" className="space-y-4 mt-4">
-                  <div className="flex justify-between items-center">
-                    <h3 className="font-semibold">Visit History</h3>
-                    <Button
-                      size="sm"
-                      onClick={() => navigate(`/patients/${id}/visits/new`)}
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Visit
-                    </Button>
-                  </div>
-                  {visits.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>No visits recorded yet</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {visits.map((visit) => (
-                        <Card
-                          key={visit.id}
-                          className="cursor-pointer hover:shadow-md transition-shadow"
-                          onClick={() =>
-                            navigate(`/patients/${id}/visits/${visit.id}`)
-                          }
+        <AccordionItem
+          value="plan"
+          className="rounded-xl border bg-white shadow-sm"
+        >
+          <AccordionTrigger className="px-5">
+            <div className="flex items-center justify-between w-full">
+              <span className="text-base font-semibold">Treatment Plan</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e) => {
+                  e.preventDefault();
+                  openEditTreatmentPlan();
+                }}
+              >
+                <Edit className="w-4 h-4" />
+              </Button>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent>
+            <div className="px-5 pb-5 space-y-6">
+              <div>
+                <h4 className="font-semibold text-sm text-muted-foreground mb-2">
+                  Electro Therapy
+                </h4>
+                <div className="whitespace-pre-wrap text-sm border rounded-md p-3 bg-slate-50 min-h-[60px] max-h-[300px] overflow-y-auto">
+                  {patient.treatmentPlan?.electroTherapy?.length
+                    ? patient.treatmentPlan.electroTherapy.join("\n")
+                    : "—"}
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-semibold text-sm text-muted-foreground">
+                    Exercise Therapy
+                  </h4>
+                  <Button variant="outline" size="sm" onClick={openAddExercise}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Exercise
+                  </Button>
+                </div>
+                <div className="space-y-4 max-h-[350px] overflow-y-auto">
+                  {patient.treatmentPlan?.exerciseTherapy?.length ? (
+                    patient.treatmentPlan.exerciseTherapy.map(
+                      (exercise, index) => (
+                        <div
+                          key={index}
+                          className="whitespace-pre-wrap text-sm border rounded-md p-3 bg-slate-50"
                         >
-                          <CardContent className="pt-4">
-                            <div className="flex justify-between items-start mb-2">
-                              <h4 className="font-semibold">
-                                {visit.chiefComplaint}
-                              </h4>
-                              <Badge variant="outline">
-                                {new Date(visit.visitDate).toLocaleDateString()}
-                              </Badge>
-                            </div>
-                            {visit.painSeverity && (
-                              <p className="text-sm text-muted-foreground mb-2">
-                                Pain Level: {visit.painSeverity}/10
-                              </p>
-                            )}
-                            <p className="text-xs text-muted-foreground">
-                              Attended by {visit.attendingStaffName}
-                            </p>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
-                </TabsContent>
-
-                <TabsContent value="prescriptions" className="space-y-4 mt-4">
-                  <h3 className="font-semibold">Prescriptions</h3>
-                  {prescriptions.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>No prescriptions yet</p>
-                    </div>
+                          {exercise}
+                        </div>
+                      ),
+                    )
                   ) : (
-                    <div className="space-y-3">
-                      {prescriptions.map((prescription) => (
-                        <Card key={prescription.id}>
-                          <CardContent className="pt-4">
-                            <div className="flex justify-between items-start mb-3">
-                              <Badge variant="outline">
-                                {new Date(
-                                  prescription.createdAt,
-                                ).toLocaleDateString()}
-                              </Badge>
-                            </div>
-                            <div className="space-y-2">
-                              {prescription.medicines.map((medicine, idx) => (
-                                <div
-                                  key={idx}
-                                  className="border-l-2 border-primary pl-3"
-                                >
-                                  <p className="font-semibold">
-                                    {medicine.name}
-                                  </p>
-                                  <p className="text-sm text-muted-foreground">
-                                    {medicine.dosage} • {medicine.frequency} •{" "}
-                                    {medicine.duration}
-                                  </p>
-                                  {medicine.instructions && (
-                                    <p className="text-sm text-muted-foreground">
-                                      {medicine.instructions}
-                                    </p>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-3">
-                              Prescribed by {prescription.prescribedByName}
-                            </p>
-                          </CardContent>
-                        </Card>
-                      ))}
+                    <div className="text-sm text-muted-foreground p-3 border rounded-md bg-slate-50">
+                      —
                     </div>
                   )}
-                </TabsContent>
+                </div>
+              </div>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
-                <TabsContent value="exercises" className="space-y-4 mt-4">
-                  <h3 className="font-semibold">Exercise Plans</h3>
-                  {exercisePlans.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Activity className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>No exercise plans yet</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {exercisePlans.map((plan) => (
-                        <Card key={plan.id}>
-                          <CardContent className="pt-4">
-                            <div className="flex justify-between items-start mb-3">
-                              <Badge variant="outline">
-                                {new Date(plan.createdAt).toLocaleDateString()}
-                              </Badge>
-                            </div>
-                            <div className="space-y-2">
-                              {plan.exercises.map((exercise, idx) => (
-                                <div
-                                  key={idx}
-                                  className="border-l-2 border-chart-2 pl-3"
-                                >
-                                  <p className="font-semibold">
-                                    {exercise.name}
-                                  </p>
-                                  <p className="text-sm text-muted-foreground">
-                                    {exercise.sets} sets ×{" "}
-                                    {exercise.repetitions} reps •{" "}
-                                    {exercise.frequency} • {exercise.duration}
-                                  </p>
-                                </div>
-                              ))}
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-3">
-                              Prescribed by {plan.prescribedByName}
-                            </p>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      {/* Add Exercise Dialog */}
+      <Dialog
+        open={addExerciseDialogOpen}
+        onOpenChange={setAddExerciseDialogOpen}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Exercise</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Exercise Details</Label>
+              <Textarea
+                value={newExerciseText}
+                onChange={(e) => setNewExerciseText(e.target.value)}
+                placeholder="Enter exercise details..."
+                rows={5}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setAddExerciseDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={saveNewExercise}>Add Exercise</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Payment Details Dialog */}
+      <Dialog
+        open={editPaymentDetailsOpen}
+        onOpenChange={setEditPaymentDetailsOpen}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Payment Details</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Payment Details</Label>
+              <Textarea
+                value={paymentDetailsText}
+                onChange={(e) => setPaymentDetailsText(e.target.value)}
+                placeholder="Enter payment details..."
+                rows={5}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditPaymentDetailsOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={savePaymentDetails}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
@@ -1336,6 +1300,63 @@ export default function PatientDetailPage() {
               Cancel
             </Button>
             <Button onClick={saveObservation}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Treatment Plan Edit Dialog */}
+      <Dialog
+        open={editTreatmentPlanOpen}
+        onOpenChange={setEditTreatmentPlanOpen}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Treatment Plan</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Electro Therapy</Label>
+              <Textarea
+                placeholder="Enter electro therapy details..."
+                className="min-h-[100px]"
+                value={treatmentPlanForm.electroTherapy}
+                onChange={(e) =>
+                  setTreatmentPlanForm({
+                    ...treatmentPlanForm,
+                    electroTherapy: e.target.value,
+                  })
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                Press Enter for new lines.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Exercise Therapy</Label>
+              <Textarea
+                placeholder="Enter exercise therapy details..."
+                className="min-h-[150px]"
+                value={treatmentPlanForm.exerciseTherapy}
+                onChange={(e) =>
+                  setTreatmentPlanForm({
+                    ...treatmentPlanForm,
+                    exerciseTherapy: e.target.value,
+                  })
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                Press Enter for new lines.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditTreatmentPlanOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={saveTreatmentPlan}>Save Changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
