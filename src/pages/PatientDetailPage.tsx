@@ -135,7 +135,7 @@ export default function PatientDetailPage() {
     setTreatmentPlanForm({
       electroTherapy: patient?.treatmentPlan?.electroTherapy?.join("\n") || "",
       exerciseTherapy:
-        patient?.treatmentPlan?.exerciseTherapy?.join("\n\n") || "",
+        patient?.treatmentPlan?.exerciseTherapy?.join("\n\n\n") || "",
     });
     setEditTreatmentPlanOpen(true);
   };
@@ -144,7 +144,7 @@ export default function PatientDetailPage() {
     if (!patient || !id) return;
     try {
       const electro = treatmentPlanForm.electroTherapy.split("\n");
-      const exercise = treatmentPlanForm.exerciseTherapy.split("\n\n");
+      const exercise = treatmentPlanForm.exerciseTherapy.split("\n\n\n");
 
       await updatePatient(id, {
         treatmentPlan: {
