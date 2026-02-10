@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,6 +51,7 @@ import {
   deleteDoctorObservation,
   updatePatient,
   deletePatient,
+  getAllPatients,
 } from "@/services/firebase";
 import type {
   Patient,
@@ -76,6 +77,7 @@ import {
 export default function PatientDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
   const { canDeletePatient } = usePermissions();
@@ -88,6 +90,7 @@ export default function PatientDetailPage() {
   const [loading, setLoading] = useState(true);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [patientNumber, setPatientNumber] = useState<number | null>(null);
 
   // Edit dialogs state
   const [visitDialogOpen, setVisitDialogOpen] = useState(false);
@@ -130,6 +133,28 @@ export default function PatientDetailPage() {
       loadPatientData();
     }
   }, [id]);
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const num = searchParams.get("num");
+    if (num) {
+      setPatientNumber(parseInt(num, 10));
+    } else if (id) {
+      // Fallback if num is not in URL: calculate it
+      getAllPatients().then((allPatients) => {
+        const sorted = [...allPatients].sort((a, b) => {
+          const ac = a.createdAt || 0;
+          const bc = b.createdAt || 0;
+          if (ac !== bc) return ac - bc;
+          return (a.id || "").localeCompare(b.id || "");
+        });
+        const patientIndex = sorted.findIndex((p) => p.id === id);
+        if (patientIndex !== -1) {
+          setPatientNumber(patientIndex + 1);
+        }
+      });
+    }
+  }, [id, location.search]);
 
   const openEditTreatmentPlan = () => {
     setTreatmentPlanForm({
@@ -810,7 +835,14 @@ export default function PatientDetailPage() {
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">{patient.fullName}</h1>
+            <h1 className="text-3xl font-bold flex items-center gap-3">
+              {patient.fullName}
+              {patientNumber && (
+                <Badge variant="secondary" className="text-lg">
+                  #{patientNumber}
+                </Badge>
+              )}
+            </h1>
             <p className="text-muted-foreground mt-1">Patient Details</p>
           </div>
         </div>

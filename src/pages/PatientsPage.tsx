@@ -360,6 +360,19 @@ export default function PatientsPage() {
     );
   }
 
+  const sortedPatientsByCreated = [...filteredPatients].sort((a, b) => {
+    const ac = a.createdAt || 0;
+    const bc = b.createdAt || 0;
+    if (ac !== bc) return ac - bc;
+    const aid = typeof a.id === "string" ? a.id : "";
+    const bid = typeof b.id === "string" ? b.id : "";
+    return aid.localeCompare(bid);
+  });
+  const numberById = new Map<string, number>();
+  sortedPatientsByCreated.forEach((p, idx) => {
+    numberById.set(p.id as string, idx + 1);
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -414,14 +427,25 @@ export default function PatientsPage() {
                 <Card
                   key={patient.id}
                   className="cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() => navigate(`/patients/${patient.id}`)}
+                  onClick={() =>
+                    navigate(
+                      `/patients/${patient.id}?num=${numberById.get(
+                        patient.id as string,
+                      )}`,
+                    )
+                  }
                 >
                   <CardHeader>
                     <div className="flex justify-between items-start">
                       <div>
-                        <CardTitle className="text-lg">
-                          {patient.fullName}
-                        </CardTitle>
+                        <div className="flex items-center gap-3">
+                          <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-sky-600 to-indigo-600 text-white font-semibold shadow-sm">
+                            {numberById.get(patient.id as string)}
+                          </div>
+                          <CardTitle className="text-lg">
+                            {patient.fullName}
+                          </CardTitle>
+                        </div>
                         {patient.age && (
                           <Badge variant="secondary" className="mt-2">
                             {patient.age} years
