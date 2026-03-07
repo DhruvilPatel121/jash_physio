@@ -294,6 +294,24 @@ export default function PatientsPage() {
     };
   }, []);
 
+  // Restore scroll position when patients are loaded
+  useEffect(() => {
+    if (!loading) {
+      const savedPosition = sessionStorage.getItem("patients_scroll_pos");
+      if (savedPosition) {
+        // Small delay to ensure the grid is rendered
+        setTimeout(() => {
+          window.scrollTo({
+            top: parseInt(savedPosition, 10),
+            behavior: "instant",
+          });
+          // Clear after restoring
+          sessionStorage.removeItem("patients_scroll_pos");
+        }, 100);
+      }
+    }
+  }, [loading]);
+
   // Build latest case note by patientId
   const latestCaseNoteByPatient = useMemo(() => {
     const map: Record<string, CaseNote> = {};
@@ -373,6 +391,12 @@ export default function PatientsPage() {
     numberById.set(p.id as string, idx + 1);
   });
 
+  const handlePatientClick = (patientId: string) => {
+    // Save scroll position before navigating
+    sessionStorage.setItem("patients_scroll_pos", window.scrollY.toString());
+    navigate(`/patients/${patientId}?num=${numberById.get(patientId)}`);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -427,13 +451,7 @@ export default function PatientsPage() {
                 <Card
                   key={patient.id}
                   className="cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() =>
-                    navigate(
-                      `/patients/${patient.id}?num=${numberById.get(
-                        patient.id as string,
-                      )}`,
-                    )
-                  }
+                  onClick={() => handlePatientClick(patient.id as string)}
                 >
                   <CardHeader>
                     <div className="flex justify-between items-start">
