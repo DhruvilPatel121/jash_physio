@@ -139,10 +139,22 @@ export default function PatientDetailPage() {
     const num = searchParams.get("num");
     if (num) {
       setPatientNumber(parseInt(num, 10));
-    } else if (id) {
-      // Fallback if num is not in URL: calculate it
+    } else if (patient && id) {
+      // Fallback if num is not in URL: calculate it month-wise
+      const targetMonth = format(new Date(patient.createdAt), "MM");
+      const targetYear = format(new Date(patient.createdAt), "yyyy");
+
       getAllPatients().then((allPatients) => {
-        const sorted = [...allPatients].sort((a, b) => {
+        const patientsInMonth = allPatients.filter((p) => {
+          if (!p.createdAt) return false;
+          const ca = new Date(p.createdAt);
+          return (
+            format(ca, "MM") === targetMonth &&
+            format(ca, "yyyy") === targetYear
+          );
+        });
+
+        const sorted = [...patientsInMonth].sort((a, b) => {
           const ac = a.createdAt || 0;
           const bc = b.createdAt || 0;
           if (ac !== bc) return ac - bc;
@@ -154,7 +166,7 @@ export default function PatientDetailPage() {
         }
       });
     }
-  }, [id, location.search]);
+  }, [id, location.search, patient]);
 
   const openEditTreatmentPlan = () => {
     setTreatmentPlanForm({

@@ -5,13 +5,28 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   subscribeToPatients,
   getAllCaseNotes,
   subscribeToCaseNotes,
 } from "@/services/firebase";
 import type { Patient, CaseNote } from "@/types";
-import { Search, Plus, User, Loader2, Download } from "lucide-react";
+import {
+  Search,
+  Plus,
+  User,
+  Loader2,
+  Download,
+  Calendar as CalendarIcon,
+} from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
+import { format, startOfMonth, endOfMonth, getMonth, getYear } from "date-fns";
 
 export default function PatientsPage() {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -19,8 +34,44 @@ export default function PatientsPage() {
   const [caseNotes, setCaseNotes] = useState<CaseNote[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  const [selectedMonth, setSelectedMonth] = useState<string>(
+    format(new Date(), "MM"),
+  );
+  const [selectedYear, setSelectedYear] = useState<string>(
+    format(new Date(), "yyyy"),
+  );
   const navigate = useNavigate();
   const debouncedSearch = useDebounce(searchTerm, 300);
+
+  const months = [
+    { value: "01", label: "January" },
+    { value: "02", label: "February" },
+    { value: "03", label: "March" },
+    { value: "04", label: "April" },
+    { value: "05", label: "May" },
+    { value: "06", label: "June" },
+    { value: "07", label: "July" },
+    { value: "08", label: "August" },
+    { value: "09", label: "September" },
+    { value: "10", label: "October" },
+    { value: "11", label: "November" },
+    { value: "12", label: "December" },
+  ];
+
+  const years = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const patientYears = patients.map((p) =>
+      p.createdAt ? new Date(p.createdAt).getFullYear() : currentYear,
+    );
+    const minYear = Math.min(...patientYears, currentYear - 1);
+    const maxYear = Math.max(...patientYears, currentYear);
+
+    const result = [];
+    for (let i = maxYear; i >= minYear; i--) {
+      result.push(i.toString());
+    }
+    return result;
+  }, [patients]);
 
   const loadJsPDF = (): Promise<any> => {
     return new Promise((resolve, reject) => {
@@ -61,14 +112,14 @@ export default function PatientsPage() {
     )} ${new Date().toLocaleTimeString()}`;
     doc.setTextColor(100);
     doc.text(
-      `Generated on ${dateStr} • Total Patients: ${patients.length}`,
+      `Generated on ${dateStr} • Total Patients: ${filteredPatients.length}`,
       margin,
       y,
     );
     doc.setTextColor(0);
     y += 30;
 
-    patients.forEach((patient, index) => {
+    filteredPatients.forEach((patient, index) => {
       // Check if we need a new page
       if (y + 200 > doc.internal.pageSize.getHeight() - margin) {
         doc.addPage();
@@ -81,7 +132,16 @@ export default function PatientsPage() {
       doc.setTextColor(255, 255, 255);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(12);
-      doc.text(`${index + 1}. ${patient.fullName}`, margin + 5, y);
+      const patientNum =
+        patientNumberMap.get(patient.id as string) || index + 1;
+      const patientMonth = patient.createdAt
+        ? format(new Date(patient.createdAt), "MMM yy")
+        : "";
+      doc.text(
+        `${patientNum}. ${patient.fullName} (${patientMonth})`,
+        margin + 5,
+        y,
+      );
 
       // Add patient ID for reference
       doc.setFont("helvetica", "normal");
@@ -321,11 +381,42 @@ export default function PatientsPage() {
     return map;
   }, [caseNotes]);
 
+  // Calculate month-wise numbering for ALL patients to ensure consistency across search and filter
+  const patientNumberMap = useMemo(() => {
+    const map = new Map<string, number>();
+    // Group patients by month-year
+    const groups: Record<string, Patient[]> = {};
+
+    patients.forEach((p) => {
+      if (!p.createdAt) return;
+      const key = format(new Date(p.createdAt), "MM-yyyy");
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(p);
+    });
+
+    // Sort each group and assign numbers
+    Object.values(groups).forEach((group) => {
+      const sorted = [...group].sort((a, b) => {
+        const ac = a.createdAt || 0;
+        const bc = b.createdAt || 0;
+        if (ac !== bc) return ac - bc;
+        return (a.id || "").localeCompare(b.id || "");
+      });
+      sorted.forEach((p, idx) => {
+        map.set(p.id as string, idx + 1);
+      });
+    });
+
+    return map;
+  }, [patients]);
+
   useEffect(() => {
+    let result = patients;
+
     if (debouncedSearch) {
+      // Global search across all months/years
       const term = debouncedSearch.toLowerCase().trim();
-      const filtered = patients.filter((patient) => {
-        // Search in patient basic info
+      result = result.filter((patient) => {
         const nameMatch =
           patient.fullName?.toLowerCase().includes(term) || false;
         const phoneMatch =
@@ -336,7 +427,19 @@ export default function PatientsPage() {
         const emergencyMatch =
           patient.emergencyContact?.toLowerCase().includes(term) || false;
 
-        // Search in case notes if available
+        // Clinical fields on the patient record
+        const clinicalMatch = [
+          patient.diagnosis,
+          patient.complaint,
+          patient.investigation,
+          patient.precautions,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(term);
+
+        // Search in latest case notes if available
         const note = latestCaseNoteByPatient[patient.id];
         let caseNoteMatch = false;
         if (note) {
@@ -361,14 +464,29 @@ export default function PatientsPage() {
           emailMatch ||
           addressMatch ||
           emergencyMatch ||
+          clinicalMatch ||
           caseNoteMatch
         );
       });
-      setFilteredPatients(filtered);
     } else {
-      setFilteredPatients(patients);
+      // Standard filter by month/year
+      result = result.filter((patient) => {
+        if (!patient.createdAt) return false;
+        const createdAt = new Date(patient.createdAt);
+        return (
+          format(createdAt, "MM") === selectedMonth &&
+          format(createdAt, "yyyy") === selectedYear
+        );
+      });
     }
-  }, [debouncedSearch, patients, latestCaseNoteByPatient]);
+    setFilteredPatients(result);
+  }, [
+    debouncedSearch,
+    patients,
+    latestCaseNoteByPatient,
+    selectedMonth,
+    selectedYear,
+  ]);
 
   if (loading) {
     return (
@@ -378,23 +496,10 @@ export default function PatientsPage() {
     );
   }
 
-  const sortedPatientsByCreated = [...filteredPatients].sort((a, b) => {
-    const ac = a.createdAt || 0;
-    const bc = b.createdAt || 0;
-    if (ac !== bc) return ac - bc;
-    const aid = typeof a.id === "string" ? a.id : "";
-    const bid = typeof b.id === "string" ? b.id : "";
-    return aid.localeCompare(bid);
-  });
-  const numberById = new Map<string, number>();
-  sortedPatientsByCreated.forEach((p, idx) => {
-    numberById.set(p.id as string, idx + 1);
-  });
-
   const handlePatientClick = (patientId: string) => {
     // Save scroll position before navigating
     sessionStorage.setItem("patients_scroll_pos", window.scrollY.toString());
-    navigate(`/patients/${patientId}?num=${numberById.get(patientId)}`);
+    navigate(`/patients/${patientId}?num=${patientNumberMap.get(patientId)}`);
   };
 
   return (
@@ -418,14 +523,49 @@ export default function PatientsPage() {
 
       <Card>
         <CardHeader>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-            <Input
-              placeholder="Search by name, phone, diagnosis, Rx plan, findings, or exercise protocol..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+              <Input
+                placeholder="Search by name, phone, diagnosis, Rx plan, findings, or exercise protocol..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <div className="flex gap-2">
+              <div className="w-[140px]">
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger>
+                    <div className="flex items-center gap-2">
+                      <CalendarIcon className="w-4 h-4 text-muted-foreground" />
+                      <SelectValue placeholder="Month" />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {months.map((month) => (
+                      <SelectItem key={month.value} value={month.value}>
+                        {month.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-[100px]">
+                <Select value={selectedYear} onValueChange={setSelectedYear}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {years.map((year) => (
+                      <SelectItem key={year} value={year}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -458,11 +598,21 @@ export default function PatientsPage() {
                       <div>
                         <div className="flex items-center gap-3">
                           <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-sky-600 to-indigo-600 text-white font-semibold shadow-sm">
-                            {numberById.get(patient.id as string)}
+                            {patientNumberMap.get(patient.id as string)}
                           </div>
-                          <CardTitle className="text-lg">
-                            {patient.fullName}
-                          </CardTitle>
+                          <div className="flex flex-col">
+                            <CardTitle className="text-lg">
+                              {patient.fullName}
+                            </CardTitle>
+                            {searchTerm && patient.createdAt && (
+                              <span className="text-xs text-muted-foreground font-normal">
+                                {format(
+                                  new Date(patient.createdAt),
+                                  "MMMM yyyy",
+                                )}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         {patient.age && (
                           <Badge variant="secondary" className="mt-2">
