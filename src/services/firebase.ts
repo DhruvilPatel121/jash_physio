@@ -35,9 +35,34 @@ export const getUser = async (uid: string): Promise<User | null> => {
   return snapshot.exists() ? snapshot.val() : null;
 };
 
+export const getAllUsers = async (): Promise<User[]> => {
+  const usersRef = ref(database, 'users');
+  const snapshot = await get(usersRef);
+  if (!snapshot.exists()) return [];
+
+  const users: User[] = [];
+  snapshot.forEach((childSnapshot) => {
+    users.push(childSnapshot.val());
+  });
+  return users;
+};
+
+export const getAllDoctors = async (): Promise<User[]> => {
+  const users = await getAllUsers();
+  // Filter for only doctors and sort them alphabetically by name
+  return users
+    .filter((user) => user.role === "doctor")
+    .sort((a, b) => a.name.localeCompare(b.name));
+};
+
 export const updateUser = async (uid: string, updates: Partial<User>) => {
   const userRef = ref(database, `users/${uid}`);
   await update(userRef, updates);
+};
+
+export const deleteUser = async (uid: string) => {
+  const userRef = ref(database, `users/${uid}`);
+  await remove(userRef);
 };
 
 // Patient operations

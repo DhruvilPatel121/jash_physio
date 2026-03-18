@@ -14,8 +14,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { createPatient, getPatient, updatePatient } from "@/services/firebase";
-import type { Patient } from "@/types";
+import {
+  createPatient,
+  getPatient,
+  updatePatient,
+  getAllDoctors,
+} from "@/services/firebase";
+import type { Patient, User as UserType } from "@/types";
 import { ArrowLeft, Loader2, Save } from "lucide-react";
 
 export default function PatientFormPage() {
@@ -26,6 +31,7 @@ export default function PatientFormPage() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(isEdit);
+  const [doctors, setDoctors] = useState<UserType[]>([]);
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -37,6 +43,7 @@ export default function PatientFormPage() {
     diagnosis: "",
     precautions: "",
     paymentDetails: "",
+    assignedDoctorId: "",
   });
 
   // Treatment plan toggles + custom text
@@ -46,10 +53,20 @@ export default function PatientFormPage() {
   const [exerciseText, setExerciseText] = useState("");
 
   useEffect(() => {
+    loadDoctors();
     if (isEdit && id) {
       loadPatient();
     }
   }, [id, isEdit]);
+
+  const loadDoctors = async () => {
+    try {
+      const docs = await getAllDoctors();
+      setDoctors(docs);
+    } catch (error) {
+      console.error("Failed to load doctors", error);
+    }
+  };
 
   const loadPatient = async () => {
     try {
@@ -65,6 +82,7 @@ export default function PatientFormPage() {
           diagnosis: patient.diagnosis || "",
           precautions: patient.precautions || "",
           paymentDetails: patient.paymentDetails || "",
+          assignedDoctorId: patient.assignedDoctorId || "",
         });
         const et = patient.treatmentPlan?.electroTherapy || [];
         const xt = patient.treatmentPlan?.exerciseTherapy || [];
@@ -120,6 +138,10 @@ export default function PatientFormPage() {
           : [""];
       }
 
+      const assignedDoctor = doctors.find(
+        (d) => d.uid === formData.assignedDoctorId,
+      );
+
       const payload: Record<string, any> = {
         fullName: formData.fullName,
         age: formData.age ? parseInt(formData.age) : null,
@@ -130,6 +152,8 @@ export default function PatientFormPage() {
         diagnosis: formData.diagnosis || null,
         precautions: formData.precautions || null,
         paymentDetails: formData.paymentDetails || null,
+        assignedDoctorId: formData.assignedDoctorId || null,
+        assignedDoctorName: assignedDoctor ? assignedDoctor.name : null,
         treatmentPlan:
           Object.keys(treatmentPlan).length > 0 ? treatmentPlan : null,
       };
@@ -255,6 +279,26 @@ export default function PatientFormPage() {
                   placeholder="Enter details"
                   rows={2}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="assignedDoctorId">Assigned Doctor</Label>
+                <Select
+                  value={formData.assignedDoctorId}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, assignedDoctorId: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Doctor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {doctors.map((doctor) => (
+                      <SelectItem key={doctor.uid} value={doctor.uid}>
+                        {doctor.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

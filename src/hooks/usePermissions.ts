@@ -48,7 +48,15 @@ export function usePermissions() {
    * Check if user is admin or doctor (main doctor)
    */
   const isAdminOrDoctor = (): boolean => {
-    return user?.role === 'admin' || user?.role === 'doctor';
+    return user?.role === "admin" || user?.role === "doctor";
+  };
+
+  /**
+   * Check if user can manage doctors (add/remove)
+   * Only admin can manage doctors
+   */
+  const canManageDoctors = (): boolean => {
+    return user?.role === "admin";
   };
 
   /**
@@ -64,7 +72,8 @@ export function usePermissions() {
     canEditRecords,
     canCreateRecords,
     isAdminOrDoctor,
+    canManageDoctors,
     isStaff,
-    user
+    user,
   };
 }

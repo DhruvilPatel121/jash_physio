@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
-import { Activity, Menu, Home, Users, LogOut, User } from "lucide-react";
+import { Activity, Menu, Home, Users, LogOut, User, UserRound } from "lucide-react";
 
 export default function Header() {
   const { user, signOut } = useAuth();
@@ -20,6 +20,7 @@ export default function Header() {
   const navItems = [
     { path: "/", label: "Dashboard", icon: Home },
     { path: "/patients", label: "Patients", icon: Users },
+    { path: "/doctors", label: "Doctors", icon: UserRound },
   ];
 
   const isActive = (path: string) => {

@@ -67,6 +67,8 @@ export interface Patient {
     exerciseTherapy?: string[];
   };
   attendance?: Record<string, 'present' | 'absent'>;
+  assignedDoctorId?: string; // ID of the doctor assigned to this patient
+  assignedDoctorName?: string; // Name of the doctor assigned to this patient
   createdBy: string;
   createdByName: string;
   createdAt: number;

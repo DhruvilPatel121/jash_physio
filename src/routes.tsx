@@ -8,6 +8,8 @@ import VisitDetailPage from './pages/VisitDetailPage';
 import TodaysVisitsPage from './pages/TodaysVisitsPage';
 import FollowUpsDuePage from './pages/FollowUpsDuePage';
 import PendingPrescriptionsPage from './pages/PendingPrescriptionsPage';
+import DoctorsPage from './pages/DoctorsPage';
+import DoctorPatientsPage from './pages/DoctorPatientsPage';
 import type { ReactNode } from 'react';
 
 interface RouteConfig {
@@ -33,6 +35,17 @@ const routes: RouteConfig[] = [
     name: 'Patients',
     path: '/patients',
     element: <PatientsPage />
+  },
+  {
+    name: 'Doctors',
+    path: '/doctors',
+    element: <DoctorsPage />
+  },
+  {
+    name: 'Doctor Patients',
+    path: '/doctors/:doctorId/patients',
+    element: <DoctorPatientsPage />,
+    visible: false
   },
   {
     name: 'Add Patient',
