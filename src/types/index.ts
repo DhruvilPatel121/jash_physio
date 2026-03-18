@@ -40,6 +40,7 @@ export interface User {
   name: string;
   role: UserRole;
   createdAt: number;
+  sessionId?: string; // To track active session and prevent multiple logins
 }
 
 // Patient type

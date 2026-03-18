@@ -60,6 +60,14 @@ export const updateUser = async (uid: string, updates: Partial<User>) => {
   await update(userRef, updates);
 };
 
+export const subscribeToUser = (uid: string, callback: (userData: User | null) => void) => {
+  const userRef = ref(database, `users/${uid}`);
+  const unsubscribe = onValue(userRef, (snapshot) => {
+    callback(snapshot.exists() ? snapshot.val() : null);
+  });
+  return () => off(userRef, 'value', unsubscribe);
+};
+
 export const deleteUser = async (uid: string) => {
   const userRef = ref(database, `users/${uid}`);
   await remove(userRef);

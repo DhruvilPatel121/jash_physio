@@ -13,8 +13,9 @@ import {
   type User as FirebaseUser,
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { getUser, createUser } from "@/services/firebase";
+import { getUser, createUser, updateUser, subscribeToUser } from "@/services/firebase";
 import type { User, UserRole } from "@/types";
+import { useToast } from "@/hooks/use-toast";
 
 interface AuthContextType {
   user: User | null;
@@ -32,58 +33,93 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Generate a unique session ID for this tab/instance
+const CURRENT_SESSION_ID = Math.random().toString(36).substring(2) + Date.now().toString(36);
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setFirebaseUser(firebaseUser);
+    let unsubscribeUser: (() => void) | null = null;
 
-      if (firebaseUser) {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (fbUser) => {
+      setFirebaseUser(fbUser);
+
+      if (fbUser) {
         // Fetch user data from database
-        let userData = await getUser(firebaseUser.uid);
+        let userData = await getUser(fbUser.uid);
 
         // If user profile doesn't exist in database, create a fallback one
         if (!userData) {
           const fallbackUser: User = {
-            uid: firebaseUser.uid,
-            email: firebaseUser.email || "",
+            uid: fbUser.uid,
+            email: fbUser.email || "",
             name:
-              firebaseUser.displayName ||
-              firebaseUser.email?.split("@")[0] ||
+              fbUser.displayName ||
+              fbUser.email?.split("@")[0] ||
               "User",
             role: "staff",
             createdAt: Date.now(),
+            sessionId: CURRENT_SESSION_ID,
           };
 
-          // Set the fallback user immediately so navigation can proceed
           setUser(fallbackUser);
-
-          // Try to persist it in the background (non-blocking)
           try {
-            await createUser(firebaseUser.uid, fallbackUser);
+            await createUser(fbUser.uid, fallbackUser);
           } catch (err) {
             console.error("Failed to create fallback user profile", err);
-            // Continue anyway - user is already set
           }
         } else {
           setUser(userData);
+          
+          // Set up a listener to monitor session changes in real-time
+          if (unsubscribeUser) unsubscribeUser();
+          unsubscribeUser = subscribeToUser(fbUser.uid, (updatedData) => {
+            if (updatedData) {
+              // Check if another session has logged in
+              if (updatedData.sessionId && updatedData.sessionId !== CURRENT_SESSION_ID) {
+                // Another login detected! Force logout.
+                toast({
+                  title: "Session Expired",
+                  description: "You have been logged out because another login was detected with these credentials.",
+                  variant: "destructive",
+                });
+                signOut();
+              } else {
+                setUser(updatedData);
+              }
+            }
+          });
         }
       } else {
         setUser(null);
+        if (unsubscribeUser) {
+          unsubscribeUser();
+          unsubscribeUser = null;
+        }
       }
 
       setLoading(false);
     });
 
-    return () => unsubscribe();
-  }, []);
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeUser) unsubscribeUser();
+    };
+  }, [toast]);
 
   const signIn = async (email: string, password: string) => {
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      
+      // Update the sessionId in the database upon successful login
+      await updateUser(userCredential.user.uid, {
+        sessionId: CURRENT_SESSION_ID
+      });
+      
       return { error: null };
     } catch (error) {
       return { error: error as Error };
@@ -103,12 +139,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password
       );
 
-      // Create user profile in database
+      // Create user profile in database with current session ID
       await createUser(userCredential.user.uid, {
         email,
         name,
         role,
         createdAt: Date.now(),
+        sessionId: CURRENT_SESSION_ID,
       });
 
       return { error: null };
@@ -118,6 +155,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    // Optional: Clear sessionId in DB on manual logout to allow immediate re-login elsewhere
+    if (user) {
+      try {
+        // Only clear if it's OUR session being logged out
+        const freshData = await getUser(user.uid);
+        if (freshData?.sessionId === CURRENT_SESSION_ID) {
+          await updateUser(user.uid, { sessionId: "" });
+        }
+      } catch (e) {
+        console.warn("Failed to clear session ID on logout", e);
+      }
+    }
+    
     await firebaseSignOut(auth);
     setUser(null);
     setFirebaseUser(null);
