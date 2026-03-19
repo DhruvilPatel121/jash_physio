@@ -13,7 +13,12 @@ import {
   type User as FirebaseUser,
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { getUser, createUser, updateUser, subscribeToUser } from "@/services/firebase";
+import {
+  getUser,
+  createUser,
+  updateUser,
+  subscribeToUser,
+} from "@/services/firebase";
 import type { User, UserRole } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 
@@ -26,15 +31,27 @@ interface AuthContextType {
     email: string,
     password: string,
     name: string,
-    role: UserRole
+    role: UserRole,
   ) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Generate a unique session ID for this tab/instance
-const CURRENT_SESSION_ID = Math.random().toString(36).substring(2) + Date.now().toString(36);
+// Generate or retrieve a unique session ID for this tab/instance
+// We use sessionStorage so the ID persists through page refreshes
+// but is cleared when the tab is closed.
+const getSessionId = () => {
+  let sessionId = sessionStorage.getItem("active_session_id");
+  if (!sessionId) {
+    sessionId =
+      Math.random().toString(36).substring(2) + Date.now().toString(36);
+    sessionStorage.setItem("active_session_id", sessionId);
+  }
+  return sessionId;
+};
+
+const CURRENT_SESSION_ID = getSessionId();
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -57,10 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const fallbackUser: User = {
             uid: fbUser.uid,
             email: fbUser.email || "",
-            name:
-              fbUser.displayName ||
-              fbUser.email?.split("@")[0] ||
-              "User",
+            name: fbUser.displayName || fbUser.email?.split("@")[0] || "User",
             role: "staff",
             createdAt: Date.now(),
             sessionId: CURRENT_SESSION_ID,
@@ -74,17 +88,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         } else {
           setUser(userData);
-          
+
           // Set up a listener to monitor session changes in real-time
           if (unsubscribeUser) unsubscribeUser();
           unsubscribeUser = subscribeToUser(fbUser.uid, (updatedData) => {
             if (updatedData) {
               // Check if another session has logged in
-              if (updatedData.sessionId && updatedData.sessionId !== CURRENT_SESSION_ID) {
+              if (
+                updatedData.sessionId &&
+                updatedData.sessionId !== CURRENT_SESSION_ID
+              ) {
                 // Another login detected! Force logout.
                 toast({
                   title: "Session Expired",
-                  description: "You have been logged out because another login was detected with these credentials.",
+                  description:
+                    "You have been logged out because another login was detected with these credentials.",
                   variant: "destructive",
                 });
                 signOut();
@@ -113,13 +131,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password,
+      );
+
       // Update the sessionId in the database upon successful login
       await updateUser(userCredential.user.uid, {
-        sessionId: CURRENT_SESSION_ID
+        sessionId: CURRENT_SESSION_ID,
       });
-      
+
       return { error: null };
     } catch (error) {
       return { error: error as Error };
@@ -130,13 +152,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     email: string,
     password: string,
     name: string,
-    role: UserRole
+    role: UserRole,
   ) => {
     try {
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
-        password
+        password,
       );
 
       // Create user profile in database with current session ID
@@ -167,7 +189,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.warn("Failed to clear session ID on logout", e);
       }
     }
-    
+
     await firebaseSignOut(auth);
     setUser(null);
     setFirebaseUser(null);
