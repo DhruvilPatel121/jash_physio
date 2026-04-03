@@ -4,7 +4,16 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
-import { Activity, Menu, Home, Users, LogOut, User, UserRound } from "lucide-react";
+import {
+  Activity,
+  Menu,
+  Home,
+  Users,
+  LogOut,
+  User,
+  UserRound,
+} from "lucide-react";
+import { NotificationBell } from "./NotificationBell";
 
 export default function Header() {
   const { user, signOut } = useAuth();
@@ -143,6 +152,7 @@ export default function Header() {
         {/* User Menu */}
         {user && (
           <div className="hidden lg:flex items-center gap-4">
+            <NotificationBell />
             <div className="text-right">
               <p className="font-semibold text-sm">{user.name}</p>
               <Badge variant="secondary" className="text-xs">

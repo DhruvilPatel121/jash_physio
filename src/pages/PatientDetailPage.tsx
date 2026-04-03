@@ -72,6 +72,7 @@ import {
   Loader2,
   FileText,
   Activity,
+  History,
 } from "lucide-react";
 
 export default function PatientDetailPage() {
@@ -127,6 +128,14 @@ export default function PatientDetailPage() {
 
   const [editPaymentDetailsOpen, setEditPaymentDetailsOpen] = useState(false);
   const [paymentDetailsText, setPaymentDetailsText] = useState("");
+
+  const [editPaidDaysOpen, setEditPaidDaysOpen] = useState(false);
+  const [paidDaysValue, setPaidDaysValue] = useState("");
+  const [isRenewing, setIsRenewing] = useState(false);
+
+  const [historyIndexToDelete, setHistoryIndexToDelete] = useState<
+    number | null
+  >(null);
 
   useEffect(() => {
     if (id) {
@@ -272,6 +281,97 @@ export default function PatientDetailPage() {
       toast({
         title: "Error",
         description: "Failed to update payment details",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const openEditPaidDays = () => {
+    setPaidDaysValue(patient?.paidDays?.toString() || "");
+    setIsRenewing(false);
+    setEditPaidDaysOpen(true);
+  };
+
+  const openRenewPaidDays = () => {
+    setPaidDaysValue("");
+    setIsRenewing(true);
+    setEditPaidDaysOpen(true);
+  };
+
+  const savePaidDays = async () => {
+    if (!patient || !id) return;
+    try {
+      const newValue = paidDaysValue.trim() ? parseInt(paidDaysValue) : null;
+
+      let updates: any = {
+        paidDays: newValue,
+      };
+
+      if (isRenewing && newValue !== null) {
+        const currentAttendance = patient.attendance || {};
+        const presentDates = Object.entries(currentAttendance)
+          .filter(([_, status]) => status === "present")
+          .map(([date, _]) => date);
+
+        const historyItem = {
+          days: patient.paidDays || 0,
+          timestamp: Date.now(),
+          completedDates: presentDates,
+        };
+        updates.paymentHistory = [
+          historyItem,
+          ...(patient.paymentHistory || []),
+        ];
+
+        // Clear current attendance to start fresh
+        updates.attendance = {};
+      }
+
+      await updatePatient(id, updates);
+
+      setPatient({
+        ...patient,
+        ...updates,
+      });
+
+      setEditPaidDaysOpen(false);
+      toast({
+        title: "Success",
+        description: isRenewing ? "New session started" : "Paid days updated",
+      });
+    } catch (e) {
+      toast({
+        title: "Error",
+        description: "Failed to update paid days",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeletePaymentHistory = async (index: number) => {
+    if (!patient || !id || !patient.paymentHistory) return;
+
+    try {
+      const newHistory = [...patient.paymentHistory];
+      newHistory.splice(index, 1);
+
+      await updatePatient(id, {
+        paymentHistory: newHistory,
+      });
+
+      setPatient({
+        ...patient,
+        paymentHistory: newHistory,
+      });
+
+      toast({
+        title: "Success",
+        description: "Payment history item deleted",
+      });
+    } catch (e) {
+      toast({
+        title: "Error",
+        description: "Failed to delete payment history item",
         variant: "destructive",
       });
     }
@@ -879,37 +979,180 @@ export default function PatientDetailPage() {
       </div>
 
       {/* Payment Details Card */}
-      <Card className="mb-8">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle>Payment Details</CardTitle>
-          <Button variant="ghost" size="icon" onClick={openEditPaymentDetails}>
-            <Edit className="w-4 h-4" />
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <div className="whitespace-pre-wrap text-sm border rounded-md p-3 bg-slate-50 min-h-[60px]">
-            {patient.attendancePaymentDetails || "—"}
-          </div>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle>Payment Details</CardTitle>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={openEditPaymentDetails}
+            >
+              <Edit className="w-4 h-4" />
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="whitespace-pre-wrap text-sm border rounded-md p-3 bg-slate-50 min-h-[60px]">
+              {patient.attendancePaymentDetails || "—"}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle>Paid Sessions</CardTitle>
+            <div className="flex gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={openRenewPaidDays}
+                title="Renew Session"
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={openEditPaidDays}
+                title="Edit Current"
+              >
+                <Edit className="w-4 h-4" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col items-center justify-center border rounded-md p-3 bg-slate-50 min-h-[60px] space-y-2">
+              {patient.paidDays ? (
+                <>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-bold text-sky-700">
+                      {
+                        Object.values(patient.attendance || {}).filter(
+                          (s) => s === "present",
+                        ).length
+                      }
+                    </span>
+                    <span className="text-muted-foreground">/</span>
+                    <span className="text-xl font-semibold text-muted-foreground">
+                      {patient.paidDays}
+                    </span>
+                    <span className="text-sm text-muted-foreground ml-1">
+                      days
+                    </span>
+                  </div>
+                  {(() => {
+                    const present = Object.values(
+                      patient.attendance || {},
+                    ).filter((s) => s === "present").length;
+                    const remaining = patient.paidDays - present;
+
+                    if (remaining <= 0) {
+                      return (
+                        <Badge variant="destructive" className="animate-pulse">
+                          Limit Reached!
+                        </Badge>
+                      );
+                    } else if (remaining === 1) {
+                      return (
+                        <Badge className="bg-amber-500 hover:bg-amber-600">
+                          1 Day Left!
+                        </Badge>
+                      );
+                    }
+                    return null;
+                  })()}
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">
+                  No session limit set
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Attendance Calendar */}
-      <Card>
-        <CardHeader>
+      <Card className="mb-8">
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
-            <Calendar className="w-5 h-5" />
-            Attendance
+            <Calendar className="w-5 h-5 text-sky-600" />
+            Attendance Calendar
+            {(() => {
+              const present = Object.values(patient.attendance || {}).filter(
+                (s) => s === "present",
+              ).length;
+              if (patient.paidDays && present >= patient.paidDays) {
+                return (
+                  <Badge variant="destructive" className="ml-2">
+                    Locked (Limit Reached)
+                  </Badge>
+                );
+              }
+              return null;
+            })()}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <AttendanceCalendar
             attendance={patient.attendance || {}}
             onAttendanceChange={handleAttendanceChange}
+            isLocked={
+              patient.paidDays !== undefined &&
+              Object.values(patient.attendance || {}).filter(
+                (s) => s === "present",
+              ).length >= patient.paidDays
+            }
           />
         </CardContent>
       </Card>
 
       <Accordion type="single" collapsible className="space-y-6">
+        {patient.paymentHistory && patient.paymentHistory.length > 0 && (
+          <AccordionItem
+            value="history"
+            className="rounded-xl border bg-white shadow-sm"
+          >
+            <AccordionTrigger className="px-5">
+              <div className="flex items-center gap-2">
+                <History className="w-4 h-4 text-sky-600" />
+                <span className="text-base font-semibold">Payment History</span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="px-5 pb-5 space-y-3">
+                {patient.paymentHistory.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="group flex flex-col p-3 border rounded-lg bg-slate-50 relative"
+                  >
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute top-2 right-2 text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8"
+                      onClick={() => setHistoryIndexToDelete(idx)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                    <div className="flex justify-between items-center mb-1 pr-10">
+                      <span className="font-bold text-sky-800">
+                        {item.days} Days Session
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {format(item.timestamp, "dd MMM yyyy, hh:mm a")}
+                      </span>
+                    </div>
+                    {item.completedDates && (
+                      <div className="text-xs text-muted-foreground">
+                        Completed on: {item.completedDates.length} days recorded
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        )}
         <AccordionItem
           value="personal"
           className="rounded-xl border bg-white shadow-sm"
@@ -1106,7 +1349,7 @@ export default function PatientDetailPage() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Payment Details</Label>
+              <Label>Details</Label>
               <Textarea
                 value={paymentDetailsText}
                 onChange={(e) => setPaymentDetailsText(e.target.value)}
@@ -1123,6 +1366,45 @@ export default function PatientDetailPage() {
               Cancel
             </Button>
             <Button onClick={savePaymentDetails}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Paid Days Dialog */}
+      <Dialog open={editPaidDaysOpen} onOpenChange={setEditPaidDaysOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {isRenewing ? "Renew Paid Sessions" : "Set Paid Session Limit"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="paidDaysLimit">Number of Paid Days</Label>
+              <Input
+                id="paidDaysLimit"
+                type="number"
+                value={paidDaysValue}
+                onChange={(e) => setPaidDaysValue(e.target.value)}
+                placeholder="e.g. 10"
+              />
+              <p className="text-xs text-muted-foreground italic">
+                {isRenewing
+                  ? "This will archive the current session and start a fresh one."
+                  : "Set to 0 or leave blank to disable alerts for this patient."}
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditPaidDaysOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={savePaidDays}>
+              {isRenewing ? "Start New Session" : "Update Limit"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1151,6 +1433,35 @@ export default function PatientDetailPage() {
               ) : (
                 "Delete"
               )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={historyIndexToDelete !== null}
+        onOpenChange={(open) => !open && setHistoryIndexToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete History Record?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove this payment record from the history.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (historyIndexToDelete !== null) {
+                  handleDeletePaymentHistory(historyIndexToDelete);
+                  setHistoryIndexToDelete(null);
+                }
+              }}
+            >
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -9,13 +9,15 @@ import { cn } from "@/lib/utils";
 interface AttendanceCalendarProps {
   attendance: Record<string, 'present' | 'absent'> | undefined;
   onAttendanceChange: (date: Date, status: 'present' | 'absent' | null) => void;
+  isLocked?: boolean;
 }
 
-export function AttendanceCalendar({ attendance = {}, onAttendanceChange }: AttendanceCalendarProps) {
+export function AttendanceCalendar({ attendance = {}, onAttendanceChange, isLocked = false }: AttendanceCalendarProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const handleDayClick = (date: Date) => {
+    if (isLocked) return;
     setSelectedDate(date);
     setIsDialogOpen(true);
   };

@@ -24,6 +24,7 @@ import {
   Loader2,
   Download,
   Calendar as CalendarIcon,
+  Activity,
 } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { format, startOfMonth, endOfMonth, getMonth, getYear } from "date-fns";
@@ -40,6 +41,7 @@ export default function PatientsPage() {
   const [selectedYear, setSelectedYear] = useState<string>(
     format(new Date(), "yyyy"),
   );
+  const [treatmentFilter, setTreatmentFilter] = useState<string>("all");
   const navigate = useNavigate();
   const debouncedSearch = useDebounce(searchTerm, 300);
 
@@ -57,6 +59,19 @@ export default function PatientsPage() {
     { value: "11", label: "November" },
     { value: "12", label: "December" },
   ];
+
+  const treatmentStatuses = [
+    { value: "all", label: "All Status" },
+    { value: "taken", label: "Taken Treatment" },
+    { value: "not_taken", label: "Not Taken Treatment" },
+  ];
+
+  const clearAllFilters = () => {
+    setSearchTerm("");
+    setSelectedMonth(format(new Date(), "MM"));
+    setSelectedYear(format(new Date(), "yyyy"));
+    setTreatmentFilter("all");
+  };
 
   const years = useMemo(() => {
     const currentYear = new Date().getFullYear();
@@ -479,6 +494,16 @@ export default function PatientsPage() {
         );
       });
     }
+
+    // Apply treatment status filter
+    if (treatmentFilter !== "all") {
+      result = result.filter((patient) => {
+        const hasAttendance =
+          patient.attendance && Object.keys(patient.attendance).length > 0;
+        return treatmentFilter === "taken" ? hasAttendance : !hasAttendance;
+      });
+    }
+
     setFilteredPatients(result);
   }, [
     debouncedSearch,
@@ -486,6 +511,7 @@ export default function PatientsPage() {
     latestCaseNoteByPatient,
     selectedMonth,
     selectedYear,
+    treatmentFilter,
   ]);
 
   if (loading) {
@@ -528,47 +554,84 @@ export default function PatientsPage() {
 
       <Card>
         <CardHeader>
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              <Input
-                placeholder="Search by name, phone, diagnosis, Rx plan, findings, or exercise protocol..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <div className="flex gap-2">
-              <div className="w-[140px]">
-                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                  <SelectTrigger>
-                    <div className="flex items-center gap-2">
-                      <CalendarIcon className="w-4 h-4 text-muted-foreground" />
-                      <SelectValue placeholder="Month" />
-                    </div>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {months.map((month) => (
-                      <SelectItem key={month.value} value={month.value}>
-                        {month.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+          <div className="flex flex-col space-y-4">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input
+                  placeholder="Search by name, phone, diagnosis, Rx plan, findings, or exercise protocol..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
               </div>
-              <div className="w-[100px]">
-                <Select value={selectedYear} onValueChange={setSelectedYear}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Year" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {years.map((year) => (
-                      <SelectItem key={year} value={year}>
-                        {year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="flex flex-wrap gap-2">
+                <div className="w-[140px]">
+                  <Select
+                    value={selectedMonth}
+                    onValueChange={setSelectedMonth}
+                  >
+                    <SelectTrigger>
+                      <div className="flex items-center gap-2">
+                        <CalendarIcon className="w-4 h-4 text-muted-foreground" />
+                        <SelectValue placeholder="Month" />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {months.map((month) => (
+                        <SelectItem key={month.value} value={month.value}>
+                          {month.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="w-[100px]">
+                  <Select value={selectedYear} onValueChange={setSelectedYear}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {years.map((year) => (
+                        <SelectItem key={year} value={year}>
+                          {year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="w-[180px]">
+                  <Select
+                    value={treatmentFilter}
+                    onValueChange={setTreatmentFilter}
+                  >
+                    <SelectTrigger>
+                      <div className="flex items-center gap-2">
+                        <Activity className="w-4 h-4 text-muted-foreground" />
+                        <SelectValue placeholder="Treatment Status" />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {treatmentStatuses.map((status) => (
+                        <SelectItem key={status.value} value={status.value}>
+                          {status.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {(searchTerm ||
+                  treatmentFilter !== "all" ||
+                  selectedMonth !== format(new Date(), "MM") ||
+                  selectedYear !== format(new Date(), "yyyy")) && (
+                  <Button
+                    variant="ghost"
+                    onClick={clearAllFilters}
+                    className="text-muted-foreground"
+                  >
+                    Clear All
+                  </Button>
+                )}
               </div>
             </div>
           </div>

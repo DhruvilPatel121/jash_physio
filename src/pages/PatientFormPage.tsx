@@ -43,6 +43,7 @@ export default function PatientFormPage() {
     diagnosis: "",
     precautions: "",
     paymentDetails: "",
+    paidDays: "",
     assignedDoctorId: "",
   });
 
@@ -82,6 +83,7 @@ export default function PatientFormPage() {
           diagnosis: patient.diagnosis || "",
           precautions: patient.precautions || "",
           paymentDetails: patient.paymentDetails || "",
+          paidDays: patient.paidDays?.toString() || "",
           assignedDoctorId: patient.assignedDoctorId || "",
         });
         const et = patient.treatmentPlan?.electroTherapy || [];
@@ -152,6 +154,7 @@ export default function PatientFormPage() {
         diagnosis: formData.diagnosis || null,
         precautions: formData.precautions || null,
         paymentDetails: formData.paymentDetails || null,
+        paidDays: formData.paidDays ? parseInt(formData.paidDays) : null,
         assignedDoctorId: formData.assignedDoctorId || null,
         assignedDoctorName: assignedDoctor ? assignedDoctor.name : null,
         treatmentPlan:
@@ -278,6 +281,18 @@ export default function PatientFormPage() {
                   }
                   placeholder="Enter details"
                   rows={2}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="paidDays">Paid Days</Label>
+                <Input
+                  id="paidDays"
+                  type="number"
+                  value={formData.paidDays}
+                  onChange={(e) =>
+                    setFormData({ ...formData, paidDays: e.target.value })
+                  }
+                  placeholder="0"
                 />
               </div>
               <div className="space-y-2">

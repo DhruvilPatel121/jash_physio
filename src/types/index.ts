@@ -68,6 +68,12 @@ export interface Patient {
     exerciseTherapy?: string[];
   };
   attendance?: Record<string, 'present' | 'absent'>;
+  paidDays?: number; // Total days in CURRENT session
+  paymentHistory?: Array<{
+    days: number;
+    timestamp: number;
+    notes?: string;
+  }>;
   assignedDoctorId?: string; // ID of the doctor assigned to this patient
   assignedDoctorName?: string; // Name of the doctor assigned to this patient
   createdBy: string;
