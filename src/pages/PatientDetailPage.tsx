@@ -1072,43 +1072,8 @@ export default function PatientDetailPage() {
         </Card>
       </div>
 
-      {/* Attendance Calendar */}
-      <Card className="mb-8">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-sky-600" />
-            Attendance Calendar
-            {(() => {
-              const present = Object.values(patient.attendance || {}).filter(
-                (s) => s === "present",
-              ).length;
-              if (patient.paidDays && present >= patient.paidDays) {
-                return (
-                  <Badge variant="destructive" className="ml-2">
-                    Locked (Limit Reached)
-                  </Badge>
-                );
-              }
-              return null;
-            })()}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <AttendanceCalendar
-            attendance={patient.attendance || {}}
-            onAttendanceChange={handleAttendanceChange}
-            isLocked={
-              patient.paidDays !== undefined &&
-              Object.values(patient.attendance || {}).filter(
-                (s) => s === "present",
-              ).length >= patient.paidDays
-            }
-          />
-        </CardContent>
-      </Card>
-
-      <Accordion type="single" collapsible className="space-y-6">
-        {patient.paymentHistory && patient.paymentHistory.length > 0 && (
+      {patient.paymentHistory && patient.paymentHistory.length > 0 && (
+        <Accordion type="single" collapsible className="mb-8">
           <AccordionItem
             value="history"
             className="rounded-xl border bg-white shadow-sm"
@@ -1152,7 +1117,45 @@ export default function PatientDetailPage() {
               </div>
             </AccordionContent>
           </AccordionItem>
-        )}
+        </Accordion>
+      )}
+
+      {/* Attendance Calendar */}
+      <Card className="mb-8">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-sky-600" />
+            Attendance Calendar
+            {(() => {
+              const present = Object.values(patient.attendance || {}).filter(
+                (s) => s === "present",
+              ).length;
+              if (patient.paidDays && present >= patient.paidDays) {
+                return (
+                  <Badge variant="destructive" className="ml-2">
+                    Locked (Limit Reached)
+                  </Badge>
+                );
+              }
+              return null;
+            })()}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <AttendanceCalendar
+            attendance={patient.attendance || {}}
+            onAttendanceChange={handleAttendanceChange}
+            isLocked={
+              patient.paidDays !== undefined &&
+              Object.values(patient.attendance || {}).filter(
+                (s) => s === "present",
+              ).length >= patient.paidDays
+            }
+          />
+        </CardContent>
+      </Card>
+
+      <Accordion type="single" collapsible className="space-y-6">
         <AccordionItem
           value="personal"
           className="rounded-xl border bg-white shadow-sm"
