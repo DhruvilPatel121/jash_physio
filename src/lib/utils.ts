@@ -37,3 +37,33 @@ export function formatDate(
     ...opts,
   }).format(new Date(date));
 }
+
+export function getCurrentSessionAttendanceCount(patient: any) {
+  if (!patient || !patient.attendance) return 0;
+  
+  const presentDates = Object.entries(patient.attendance)
+    .filter(([_, status]) => status === "present")
+    .map(([date, _]) => date);
+    
+  const archivedDates = (patient.paymentHistory || [])
+    .flatMap((h: any) => h.completedDates || []);
+    
+  const archivedSet = new Set(archivedDates);
+  const currentSessionDates = presentDates.filter(d => !archivedSet.has(d));
+  
+  return currentSessionDates.length;
+}
+
+export function highlightText(text: string, searchTerm: string) {
+  if (!searchTerm?.trim() || !text) return text;
+  
+  const trimmedTerm = searchTerm.trim();
+  const escapedTerm = trimmedTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const parts = text.split(new RegExp(`(${escapedTerm})`, 'gi'));
+  
+  return parts.map((part) => 
+    part.toLowerCase() === trimmedTerm.toLowerCase() ? 
+      `<span class="bg-yellow-300 text-black font-bold px-0.5 rounded">${part}</span>` : 
+      part
+  ).join('');
+}

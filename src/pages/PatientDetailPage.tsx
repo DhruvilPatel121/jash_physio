@@ -62,6 +62,7 @@ import type {
 } from "@/types";
 import { AttendanceCalendar } from "@/components/patients/AttendanceCalendar";
 import { format } from "date-fns";
+import { getCurrentSessionAttendanceCount } from "@/lib/utils";
 import {
   ArrowLeft,
   Edit,
@@ -298,6 +299,28 @@ export default function PatientDetailPage() {
     setEditPaidDaysOpen(true);
   };
 
+  const currentSessionCount = getCurrentSessionAttendanceCount(patient);
+
+  const getSessionName = (index: number) => {
+    if (!patient?.paymentHistory) return "";
+    const totalSessions = patient.paymentHistory.length;
+    const sessionNumber = totalSessions - index;
+
+    // Convert to ordinal (1st, 2nd, 3rd...)
+    const j = sessionNumber % 10,
+      k = sessionNumber % 100;
+    if (j === 1 && k !== 11) {
+      return sessionNumber + "st Session";
+    }
+    if (j === 2 && k !== 12) {
+      return sessionNumber + "nd Session";
+    }
+    if (j === 3 && k !== 13) {
+      return sessionNumber + "rd Session";
+    }
+    return sessionNumber + "th Session";
+  };
+
   const savePaidDays = async () => {
     if (!patient || !id) return;
     try {
@@ -308,23 +331,31 @@ export default function PatientDetailPage() {
       };
 
       if (isRenewing && newValue !== null) {
+        // Find ALL present dates that haven't been archived yet
+        const archivedDates = (patient.paymentHistory || []).flatMap(
+          (h) => h.completedDates || [],
+        );
+        const archivedSet = new Set(archivedDates);
+
         const currentAttendance = patient.attendance || {};
         const presentDates = Object.entries(currentAttendance)
-          .filter(([_, status]) => status === "present")
+          .filter(
+            ([date, status]) => status === "present" && !archivedSet.has(date),
+          )
           .map(([date, _]) => date);
 
-        const historyItem = {
-          days: patient.paidDays || 0,
-          timestamp: Date.now(),
-          completedDates: presentDates,
-        };
-        updates.paymentHistory = [
-          historyItem,
-          ...(patient.paymentHistory || []),
-        ];
-
-        // Clear current attendance to start fresh
-        updates.attendance = {};
+        // Even if presentDates is empty, we archive the session limit if it was > 0
+        if ((patient.paidDays || 0) > 0) {
+          const historyItem = {
+            days: patient.paidDays || 0,
+            timestamp: Date.now(),
+            completedDates: presentDates,
+          };
+          updates.paymentHistory = [
+            historyItem,
+            ...(patient.paymentHistory || []),
+          ];
+        }
       }
 
       await updatePatient(id, updates);
@@ -352,21 +383,32 @@ export default function PatientDetailPage() {
     if (!patient || !id || !patient.paymentHistory) return;
 
     try {
+      const historyItem = patient.paymentHistory[index];
+      const datesToRemove = historyItem.completedDates || [];
+      
       const newHistory = [...patient.paymentHistory];
       newHistory.splice(index, 1);
 
-      await updatePatient(id, {
-        paymentHistory: newHistory,
+      const updatedAttendance = { ...(patient.attendance || {}) };
+      datesToRemove.forEach(dateKey => {
+        delete updatedAttendance[dateKey];
       });
+
+      const updates: any = {
+        paymentHistory: newHistory,
+        attendance: updatedAttendance
+      };
+
+      await updatePatient(id, updates);
 
       setPatient({
         ...patient,
-        paymentHistory: newHistory,
+        ...updates
       });
 
       toast({
         title: "Success",
-        description: "Payment history item deleted",
+        description: "Payment history and associated attendance deleted",
       });
     } catch (e) {
       toast({
@@ -1026,11 +1068,7 @@ export default function PatientDetailPage() {
                 <>
                   <div className="flex items-baseline gap-2">
                     <span className="text-3xl font-bold text-sky-700">
-                      {
-                        Object.values(patient.attendance || {}).filter(
-                          (s) => s === "present",
-                        ).length
-                      }
+                      {currentSessionCount}
                     </span>
                     <span className="text-muted-foreground">/</span>
                     <span className="text-xl font-semibold text-muted-foreground">
@@ -1041,9 +1079,7 @@ export default function PatientDetailPage() {
                     </span>
                   </div>
                   {(() => {
-                    const present = Object.values(
-                      patient.attendance || {},
-                    ).filter((s) => s === "present").length;
+                    const present = currentSessionCount;
                     const remaining = patient.paidDays - present;
 
                     if (remaining <= 0) {
@@ -1101,7 +1137,7 @@ export default function PatientDetailPage() {
                     </Button>
                     <div className="flex justify-between items-center mb-1 pr-10">
                       <span className="font-bold text-sky-800">
-                        {item.days} Days Session
+                        {getSessionName(idx)} ({item.days} Days Session)
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {format(item.timestamp, "dd MMM yyyy, hh:mm a")}
@@ -1127,10 +1163,7 @@ export default function PatientDetailPage() {
             <Calendar className="w-5 h-5 text-sky-600" />
             Attendance Calendar
             {(() => {
-              const present = Object.values(patient.attendance || {}).filter(
-                (s) => s === "present",
-              ).length;
-              if (patient.paidDays && present >= patient.paidDays) {
+              if (patient.paidDays && currentSessionCount >= patient.paidDays) {
                 return (
                   <Badge variant="destructive" className="ml-2">
                     Locked (Limit Reached)
@@ -1144,12 +1177,13 @@ export default function PatientDetailPage() {
         <CardContent>
           <AttendanceCalendar
             attendance={patient.attendance || {}}
+            archivedDates={(patient.paymentHistory || []).flatMap(
+              (h) => h.completedDates || [],
+            )}
             onAttendanceChange={handleAttendanceChange}
             isLocked={
               patient.paidDays !== undefined &&
-              Object.values(patient.attendance || {}).filter(
-                (s) => s === "present",
-              ).length >= patient.paidDays
+              currentSessionCount >= patient.paidDays
             }
           />
         </CardContent>

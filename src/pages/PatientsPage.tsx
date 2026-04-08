@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { format, startOfMonth, endOfMonth, getMonth, getYear } from "date-fns";
+import { highlightText } from "@/lib/utils";
 
 export default function PatientsPage() {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -670,7 +671,14 @@ export default function PatientsPage() {
                           </div>
                           <div className="flex flex-col">
                             <CardTitle className="text-lg">
-                              {patient.fullName}
+                              <span
+                                dangerouslySetInnerHTML={{
+                                  __html: highlightText(
+                                    patient.fullName,
+                                    debouncedSearch,
+                                  ),
+                                }}
+                              />
                             </CardTitle>
                             {searchTerm && patient.createdAt && (
                               <span className="text-xs text-muted-foreground font-normal">
@@ -703,17 +711,29 @@ export default function PatientsPage() {
                             <span className="font-medium text-sky-700">
                               Complaint:
                             </span>{" "}
-                            <span className="text-muted-foreground line-clamp-2">
-                              {note?.complaint || patient.complaint || "—"}
-                            </span>
+                            <span
+                              className="text-muted-foreground line-clamp-2"
+                              dangerouslySetInnerHTML={{
+                                __html: highlightText(
+                                  note?.complaint || patient.complaint || "—",
+                                  debouncedSearch,
+                                ),
+                              }}
+                            />
                           </div>
                           <div className="text-sm">
                             <span className="font-medium text-sky-700">
                               Diagnosis:
                             </span>{" "}
-                            <span className="text-muted-foreground line-clamp-2">
-                              {note?.diagnosis || patient.diagnosis || "—"}
-                            </span>
+                            <span
+                              className="text-muted-foreground line-clamp-2"
+                              dangerouslySetInnerHTML={{
+                                __html: highlightText(
+                                  note?.diagnosis || patient.diagnosis || "—",
+                                  debouncedSearch,
+                                ),
+                              }}
+                            />
                           </div>
                           <div className="text-sm">
                             <span className="font-medium text-sky-700">

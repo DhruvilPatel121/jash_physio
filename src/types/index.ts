@@ -73,6 +73,7 @@ export interface Patient {
     days: number;
     timestamp: number;
     notes?: string;
+    completedDates?: string[];
   }>;
   assignedDoctorId?: string; // ID of the doctor assigned to this patient
   assignedDoctorName?: string; // Name of the doctor assigned to this patient
