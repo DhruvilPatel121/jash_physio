@@ -385,25 +385,25 @@ export default function PatientDetailPage() {
     try {
       const historyItem = patient.paymentHistory[index];
       const datesToRemove = historyItem.completedDates || [];
-      
+
       const newHistory = [...patient.paymentHistory];
       newHistory.splice(index, 1);
 
       const updatedAttendance = { ...(patient.attendance || {}) };
-      datesToRemove.forEach(dateKey => {
+      datesToRemove.forEach((dateKey) => {
         delete updatedAttendance[dateKey];
       });
 
       const updates: any = {
         paymentHistory: newHistory,
-        attendance: updatedAttendance
+        attendance: updatedAttendance,
       };
 
       await updatePatient(id, updates);
 
       setPatient({
         ...patient,
-        ...updates
+        ...updates,
       });
 
       toast({
@@ -960,7 +960,7 @@ export default function PatientDetailPage() {
     }
   };
 
-  if (loading) {
+  if (loading || (!patient && !id)) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -968,11 +968,20 @@ export default function PatientDetailPage() {
     );
   }
 
-  if (!patient) {
+  if (!patient && !loading) {
     return (
-      <div className="text-center py-12">
-        <h2 className="text-2xl font-bold mb-4">Patient not found</h2>
-        <Button onClick={() => navigate("/patients")}>Back to Patients</Button>
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+        <h2 className="text-2xl font-bold mb-4 text-muted-foreground">
+          Patient not found
+        </h2>
+        <p className="text-muted-foreground mb-6">
+          The patient record you are looking for might have been moved or
+          deleted.
+        </p>
+        <Button onClick={() => navigate("/patients")}>
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Patients
+        </Button>
       </div>
     );
   }

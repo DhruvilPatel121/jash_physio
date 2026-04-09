@@ -284,18 +284,6 @@ export default function PatientFormPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="paidDays">Paid Days</Label>
-                <Input
-                  id="paidDays"
-                  type="number"
-                  value={formData.paidDays}
-                  onChange={(e) =>
-                    setFormData({ ...formData, paidDays: e.target.value })
-                  }
-                  placeholder="0"
-                />
-              </div>
-              <div className="space-y-2">
                 <Label htmlFor="assignedDoctorId">Assigned Doctor</Label>
                 <Select
                   value={formData.assignedDoctorId}
