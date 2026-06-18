@@ -12,6 +12,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { PatientDateCalendar } from "@/components/patients/PatientDateCalendar";
+import {
   subscribeToPatients,
   getAllCaseNotes,
   subscribeToCaseNotes,
@@ -27,8 +33,20 @@ import {
   Activity,
 } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
-import { format, startOfMonth, endOfMonth, getMonth, getYear } from "date-fns";
+import { format } from "date-fns";
 import { highlightText } from "@/lib/utils";
+
+function patientMatchesDate(patient: Patient, targetDateStr: string) {
+  if (!patient.id) return false;
+
+  const isCreatedOnDate =
+    !!patient.createdAt &&
+    format(new Date(patient.createdAt), "yyyy-MM-dd") === targetDateStr;
+
+  const hasVisitedOnDate = patient.attendance?.[targetDateStr] === "present";
+
+  return isCreatedOnDate || hasVisitedOnDate;
+}
 
 export default function PatientsPage() {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -43,6 +61,8 @@ export default function PatientsPage() {
     format(new Date(), "yyyy"),
   );
   const [treatmentFilter, setTreatmentFilter] = useState<string>("all");
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const navigate = useNavigate();
   const debouncedSearch = useDebounce(searchTerm, 300);
 
@@ -72,6 +92,7 @@ export default function PatientsPage() {
     setSelectedMonth(format(new Date(), "MM"));
     setSelectedYear(format(new Date(), "yyyy"));
     setTreatmentFilter("all");
+    setSelectedDate(undefined);
   };
 
   const years = useMemo(() => {
@@ -356,7 +377,6 @@ export default function PatientsPage() {
     // Subscribe to real-time patient updates
     const unsubscribePatients = subscribeToPatients((updatedPatients) => {
       setPatients(updatedPatients);
-      setFilteredPatients(updatedPatients);
       setLoading(false);
     });
     // Subscribe to real-time case notes so cards refresh instantly
@@ -397,6 +417,39 @@ export default function PatientsPage() {
     return map;
   }, [caseNotes]);
 
+  // Calculate total patients per date (new registrations + present visits)
+  const totalPatientsPerDate = useMemo(() => {
+    const counts: Record<string, Set<string>> = {};
+
+    patients.forEach((patient) => {
+      if (!patient.id) return;
+
+      if (patient.createdAt) {
+        const createdDateStr = format(
+          new Date(patient.createdAt),
+          "yyyy-MM-dd",
+        );
+        if (!counts[createdDateStr]) counts[createdDateStr] = new Set();
+        counts[createdDateStr].add(patient.id);
+      }
+
+      if (patient.attendance) {
+        Object.entries(patient.attendance).forEach(([dateStr, status]) => {
+          if (status !== "present") return;
+          if (!counts[dateStr]) counts[dateStr] = new Set();
+          counts[dateStr].add(patient.id);
+        });
+      }
+    });
+
+    const finalCounts: Record<string, number> = {};
+    Object.keys(counts).forEach((dateStr) => {
+      finalCounts[dateStr] = counts[dateStr].size;
+    });
+
+    return finalCounts;
+  }, [patients]);
+
   // Calculate month-wise numbering for ALL patients to ensure consistency across search and filter
   const patientNumberMap = useMemo(() => {
     const map = new Map<string, number>();
@@ -427,10 +480,28 @@ export default function PatientsPage() {
   }, [patients]);
 
   useEffect(() => {
-    let result = patients;
+    let result = [...patients];
 
+    // 1. Apply DATE FILTER first (highest priority)
+    if (selectedDate) {
+      const targetDateStr = format(selectedDate, "yyyy-MM-dd");
+      result = result.filter((patient) =>
+        patientMatchesDate(patient, targetDateStr),
+      );
+    } else {
+      // 2. Apply MONTH/YEAR filter if no date selected
+      result = result.filter((patient) => {
+        if (!patient.createdAt) return false;
+        const createdAt = new Date(patient.createdAt);
+        return (
+          format(createdAt, "MM") === selectedMonth &&
+          format(createdAt, "yyyy") === selectedYear
+        );
+      });
+    }
+
+    // 3. Apply SEARCH filter if search term exists
     if (debouncedSearch) {
-      // Global search across all months/years
       const term = debouncedSearch.toLowerCase().trim();
       result = result.filter((patient) => {
         const nameMatch =
@@ -484,19 +555,9 @@ export default function PatientsPage() {
           caseNoteMatch
         );
       });
-    } else {
-      // Standard filter by month/year
-      result = result.filter((patient) => {
-        if (!patient.createdAt) return false;
-        const createdAt = new Date(patient.createdAt);
-        return (
-          format(createdAt, "MM") === selectedMonth &&
-          format(createdAt, "yyyy") === selectedYear
-        );
-      });
     }
 
-    // Apply treatment status filter
+    // 4. Apply TREATMENT STATUS filter
     if (treatmentFilter !== "all") {
       result = result.filter((patient) => {
         const hasAttendance =
@@ -513,6 +574,7 @@ export default function PatientsPage() {
     selectedMonth,
     selectedYear,
     treatmentFilter,
+    selectedDate,
   ]);
 
   if (loading) {
@@ -531,22 +593,46 @@ export default function PatientsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-3">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 flex-1">
+          <h1 className="flex flex-wrap items-center gap-2 text-2xl font-bold sm:gap-3 sm:text-3xl">
             Patients
-            <Badge variant="outline" className="text-lg py-1 px-3">
-              Total: {patients.length}
+            {selectedDate && (
+              <Badge
+                variant="outline"
+                className="bg-emerald-50 border-emerald-200 px-2 py-0.5 text-sm text-emerald-700 sm:px-3 sm:py-1 sm:text-base"
+              >
+                {format(selectedDate, "MMM d, yyyy")}
+              </Badge>
+            )}
+            <Badge
+              variant="outline"
+              className="px-2 py-0.5 text-sm sm:px-3 sm:py-1 sm:text-base"
+            >
+              {selectedDate
+                ? `${filteredPatients.length} patients`
+                : `Total: ${patients.length}`}
             </Badge>
           </h1>
-          <p className="text-muted-foreground mt-1">Manage patient records</p>
+          <p className="mt-1 text-sm text-muted-foreground sm:text-base">
+            {selectedDate
+              ? "New patients and visits on this date"
+              : "Manage patient records"}
+          </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={exportPatientsPdf}>
+        <div className="flex w-full shrink-0 flex-wrap gap-2 sm:w-auto">
+          <Button
+            variant="outline"
+            onClick={exportPatientsPdf}
+            className="flex-1 sm:flex-none"
+          >
             <Download className="w-4 h-4 mr-2" />
             Download PDF
           </Button>
-          <Button onClick={() => navigate("/patients/new")}>
+          <Button
+            onClick={() => navigate("/patients/new")}
+            className="flex-1 sm:flex-none"
+          >
             <Plus className="w-4 h-4 mr-2" />
             Add Patient
           </Button>
@@ -554,100 +640,153 @@ export default function PatientsPage() {
       </div>
 
       <Card>
-        <CardHeader>
-          <div className="flex flex-col space-y-4">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                <Input
-                  placeholder="Search by name, phone, diagnosis, Rx plan, findings, or exercise protocol..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <div className="w-[140px]">
-                  <Select
-                    value={selectedMonth}
-                    onValueChange={setSelectedMonth}
-                  >
-                    <SelectTrigger>
-                      <div className="flex items-center gap-2">
-                        <CalendarIcon className="w-4 h-4 text-muted-foreground" />
-                        <SelectValue placeholder="Month" />
-                      </div>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {months.map((month) => (
-                        <SelectItem key={month.value} value={month.value}>
-                          {month.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="w-[100px]">
-                  <Select value={selectedYear} onValueChange={setSelectedYear}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Year" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {years.map((year) => (
-                        <SelectItem key={year} value={year}>
-                          {year}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="w-[180px]">
-                  <Select
-                    value={treatmentFilter}
-                    onValueChange={setTreatmentFilter}
-                  >
-                    <SelectTrigger>
-                      <div className="flex items-center gap-2">
-                        <Activity className="w-4 h-4 text-muted-foreground" />
-                        <SelectValue placeholder="Treatment Status" />
-                      </div>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {treatmentStatuses.map((status) => (
-                        <SelectItem key={status.value} value={status.value}>
-                          {status.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {(searchTerm ||
-                  treatmentFilter !== "all" ||
-                  selectedMonth !== format(new Date(), "MM") ||
-                  selectedYear !== format(new Date(), "yyyy")) && (
-                  <Button
-                    variant="ghost"
-                    onClick={clearAllFilters}
-                    className="text-muted-foreground"
-                  >
-                    Clear All
-                  </Button>
-                )}
-              </div>
+        <CardHeader className="space-y-4">
+          <div className="relative w-full">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search by name, phone, diagnosis, Rx plan, findings, or exercise protocol..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+
+          <div className="grid w-full grid-cols-2 gap-2 sm:grid-cols-4 lg:flex lg:flex-wrap lg:items-center">
+            <div className="min-w-0 lg:w-[140px]">
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger className="w-full">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <CalendarIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <SelectValue placeholder="Month" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  {months.map((month) => (
+                    <SelectItem key={month.value} value={month.value}>
+                      {month.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+
+            <div className="min-w-0 lg:w-[100px]">
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {years.map((year) => (
+                    <SelectItem key={year} value={year}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="col-span-2 min-w-0 lg:min-w-[220px] lg:flex-1 lg:max-w-sm xl:max-w-md">
+              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="h-auto min-h-9 w-full min-w-0 justify-start whitespace-normal px-3 py-2 text-left font-normal"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+                    {selectedDate ? (
+                      <span className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+                        <span className="min-w-0 truncate text-sm leading-tight">
+                          <span className="sm:hidden">
+                            {format(selectedDate, "dd MMM yyyy")}
+                          </span>
+                          <span className="hidden sm:inline">
+                            {format(selectedDate, "MMM d, yyyy")}
+                          </span>
+                        </span>
+                        <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold leading-none text-emerald-700 sm:text-xs">
+                          {totalPatientsPerDate[
+                            format(selectedDate, "yyyy-MM-dd")
+                          ] ?? 0}
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="truncate text-sm">Pick date</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-auto max-w-[calc(100vw-2rem)] p-4"
+                  align="start"
+                >
+                  <PatientDateCalendar
+                    selected={selectedDate}
+                    patientCounts={totalPatientsPerDate}
+                    onSelect={(date) => {
+                      setSelectedDate(date);
+                      if (date) {
+                        setSelectedMonth(format(date, "MM"));
+                        setSelectedYear(format(date, "yyyy"));
+                      }
+                      setCalendarOpen(false);
+                    }}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="col-span-2 min-w-0 sm:col-span-1 lg:w-[180px]">
+              <Select
+                value={treatmentFilter}
+                onValueChange={setTreatmentFilter}
+              >
+                <SelectTrigger className="w-full">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Activity className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <SelectValue placeholder="Treatment Status" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  {treatmentStatuses.map((status) => (
+                    <SelectItem key={status.value} value={status.value}>
+                      {status.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {(searchTerm ||
+              treatmentFilter !== "all" ||
+              selectedMonth !== format(new Date(), "MM") ||
+              selectedYear !== format(new Date(), "yyyy") ||
+              selectedDate) && (
+              <Button
+                variant="ghost"
+                onClick={clearAllFilters}
+                className="col-span-2 w-full text-muted-foreground sm:col-span-1 sm:w-auto lg:w-auto"
+              >
+                Clear All
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
           {filteredPatients.length === 0 ? (
             <div className="text-center py-12">
               <User className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No patients found</h3>
+              <h3 className="text-lg font-semibold mb-2">
+                {selectedDate
+                  ? "No patients on this date"
+                  : "No patients found"}
+              </h3>
               <p className="text-muted-foreground mb-4">
                 {searchTerm
                   ? "Try a different search term"
-                  : "Get started by adding your first patient"}
+                  : selectedDate
+                    ? "Select another date to view patients"
+                    : "Get started by adding your first patient"}
               </p>
-              {!searchTerm && (
+              {!searchTerm && !selectedDate && (
                 <Button onClick={() => navigate("/patients/new")}>
                   <Plus className="w-4 h-4 mr-2" />
                   Add Patient
@@ -680,14 +819,46 @@ export default function PatientsPage() {
                                 }}
                               />
                             </CardTitle>
-                            {searchTerm && patient.createdAt && (
+                            {patient.createdAt && (
                               <span className="text-xs text-muted-foreground font-normal">
+                                Created:{" "}
                                 {format(
                                   new Date(patient.createdAt),
-                                  "MMMM yyyy",
+                                  "dd/MM/yyyy",
                                 )}
                               </span>
                             )}
+                            {selectedDate &&
+                              (() => {
+                                const targetDateStr = format(
+                                  selectedDate,
+                                  "yyyy-MM-dd",
+                                );
+                                const isCreatedOnDate =
+                                  !!patient.createdAt &&
+                                  format(
+                                    new Date(patient.createdAt),
+                                    "yyyy-MM-dd",
+                                  ) === targetDateStr;
+                                const hasVisitedOnDate =
+                                  patient.attendance?.[targetDateStr] ===
+                                  "present";
+
+                                return (
+                                  <div className="flex gap-2 mt-1 flex-wrap">
+                                    {isCreatedOnDate && (
+                                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                                        New Patient
+                                      </span>
+                                    )}
+                                    {hasVisitedOnDate && (
+                                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                                        Visited
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                           </div>
                         </div>
                         {patient.age && (
