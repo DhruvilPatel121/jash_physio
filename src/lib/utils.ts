@@ -42,7 +42,7 @@ export function getCurrentSessionAttendanceCount(patient: any) {
   if (!patient || !patient.attendance) return 0;
   
   const presentDates = Object.entries(patient.attendance)
-    .filter(([_, status]) => status === "present")
+    .filter(([_, status]) => status === "present" || status === "consulting")
     .map(([date, _]) => date);
     
   const archivedDates = (patient.paymentHistory || [])

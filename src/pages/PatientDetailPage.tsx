@@ -453,7 +453,7 @@ export default function PatientDetailPage() {
 
   const handleAttendanceChange = async (
     date: Date,
-    status: "present" | "absent" | null,
+    status: "present" | "absent" | "consulting" | null,
   ) => {
     if (!patient || !id) return;
 

@@ -43,7 +43,9 @@ function patientMatchesDate(patient: Patient, targetDateStr: string) {
     !!patient.createdAt &&
     format(new Date(patient.createdAt), "yyyy-MM-dd") === targetDateStr;
 
-  const hasVisitedOnDate = patient.attendance?.[targetDateStr] === "present";
+  const hasVisitedOnDate =
+    patient.attendance?.[targetDateStr] === "present" ||
+    patient.attendance?.[targetDateStr] === "consulting";
 
   return isCreatedOnDate || hasVisitedOnDate;
 }
@@ -482,25 +484,7 @@ export default function PatientsPage() {
   useEffect(() => {
     let result = [...patients];
 
-    // 1. Apply DATE FILTER first (highest priority)
-    if (selectedDate) {
-      const targetDateStr = format(selectedDate, "yyyy-MM-dd");
-      result = result.filter((patient) =>
-        patientMatchesDate(patient, targetDateStr),
-      );
-    } else {
-      // 2. Apply MONTH/YEAR filter if no date selected
-      result = result.filter((patient) => {
-        if (!patient.createdAt) return false;
-        const createdAt = new Date(patient.createdAt);
-        return (
-          format(createdAt, "MM") === selectedMonth &&
-          format(createdAt, "yyyy") === selectedYear
-        );
-      });
-    }
-
-    // 3. Apply SEARCH filter if search term exists
+    // 1. Apply SEARCH filter first if present (GLOBAL search)
     if (debouncedSearch) {
       const term = debouncedSearch.toLowerCase().trim();
       result = result.filter((patient) => {
@@ -555,6 +539,24 @@ export default function PatientsPage() {
           caseNoteMatch
         );
       });
+    } else {
+      // 2. Apply DATE FILTER if present
+      if (selectedDate) {
+        const targetDateStr = format(selectedDate, "yyyy-MM-dd");
+        result = result.filter((patient) =>
+          patientMatchesDate(patient, targetDateStr),
+        );
+      } else {
+        // 3. Apply MONTH/YEAR filter if no date and no search
+        result = result.filter((patient) => {
+          if (!patient.createdAt) return false;
+          const createdAt = new Date(patient.createdAt);
+          return (
+            format(createdAt, "MM") === selectedMonth &&
+            format(createdAt, "yyyy") === selectedYear
+          );
+        });
+      }
     }
 
     // 4. Apply TREATMENT STATUS filter
@@ -842,7 +844,9 @@ export default function PatientsPage() {
                                   ) === targetDateStr;
                                 const hasVisitedOnDate =
                                   patient.attendance?.[targetDateStr] ===
-                                  "present";
+                                    "present" ||
+                                  patient.attendance?.[targetDateStr] ===
+                                    "consulting";
 
                                 return (
                                   <div className="flex gap-2 mt-1 flex-wrap">

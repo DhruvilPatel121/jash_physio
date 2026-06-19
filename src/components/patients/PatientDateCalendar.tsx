@@ -2,7 +2,9 @@ import { Calendar } from "@/components/ui/calendar";
 import { format, isSameDay } from "date-fns";
 import { cn } from "@/lib/utils";
 
-const CELL_SIZE = "w-[3.25rem]";
+const CELL_SIZE_MOBILE = "w-[2.5rem]";
+const CELL_SIZE_TABLET = "sm:w-[3rem]";
+const CELL_SIZE_DESKTOP = "md:w-[3.5rem]";
 
 interface PatientDateCalendarProps {
   selected?: Date;
@@ -40,26 +42,32 @@ export function PatientDateCalendar({
         months: "flex flex-col",
         month: "space-y-3",
         caption: "flex justify-center pt-1 relative items-center mb-1",
-        caption_label: "text-base font-semibold",
+        caption_label: "text-sm sm:text-base font-semibold",
         nav_button: cn(
-          "inline-flex items-center justify-center rounded-md border border-input bg-background size-8 p-0 opacity-70 hover:opacity-100",
+          "inline-flex items-center justify-center rounded-md border border-input bg-background size-7 sm:size-8 p-0 opacity-70 hover:opacity-100",
         ),
         nav_button_previous: "absolute left-0",
         nav_button_next: "absolute right-0",
         table: "w-full border-collapse",
         head_row: "flex justify-center",
         head_cell: cn(
-          CELL_SIZE,
-          "text-muted-foreground font-medium text-xs flex items-center justify-center h-8",
+          CELL_SIZE_MOBILE,
+          CELL_SIZE_TABLET,
+          CELL_SIZE_DESKTOP,
+          "text-muted-foreground font-medium text-[0.7rem] sm:text-xs flex items-center justify-center h-6 sm:h-8",
         ),
         row: "flex w-full justify-center mt-0.5",
         cell: cn(
-          CELL_SIZE,
+          CELL_SIZE_MOBILE,
+          CELL_SIZE_TABLET,
+          CELL_SIZE_DESKTOP,
           "relative p-0 text-center focus-within:relative focus-within:z-20 [&:has([aria-selected])]:rounded-lg",
         ),
         day: cn(
-          CELL_SIZE,
-          "h-[3.25rem] p-0 font-normal rounded-lg hover:bg-slate-100 aria-selected:opacity-100",
+          CELL_SIZE_MOBILE,
+          CELL_SIZE_TABLET,
+          CELL_SIZE_DESKTOP,
+          "h-[2.5rem] sm:h-[3rem] md:h-[3.5rem] p-0 font-normal rounded-lg hover:bg-slate-100 aria-selected:opacity-100",
         ),
         day_selected:
           "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
@@ -74,11 +82,11 @@ export function PatientDateCalendar({
 
           return (
             <div className="flex flex-col items-center justify-center gap-1 pointer-events-none">
-              <span className="text-sm font-semibold leading-none">
+              <span className="text-xs sm:text-sm font-semibold leading-none">
                 {date.getDate()}
               </span>
               {count ? (
-                <span className="inline-flex items-center justify-center min-w-[1.375rem] h-[1.375rem] px-1 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold leading-none">
+                <span className="inline-flex items-center justify-center min-w-[1.25rem] sm:min-w-[1.375rem] h-[1.25rem] sm:h-[1.375rem] px-1 rounded-full bg-emerald-100 text-emerald-700 text-[0.65rem] sm:text-[10px] font-bold leading-none">
                   {count}
                 </span>
               ) : null}

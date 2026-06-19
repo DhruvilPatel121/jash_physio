@@ -41,8 +41,8 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between px-4">
-        <div className="flex items-center gap-4">
+      <div className="container flex h-16 items-center justify-between px-2 sm:px-4">
+        <div className="flex items-center gap-3 sm:gap-4">
           {/* Mobile Menu */}
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild className="lg:hidden">
@@ -53,9 +53,6 @@ export default function Header() {
             <SheetContent side="left" className="w-64">
               <div className="flex flex-col h-full">
                 <div className="flex items-center gap-2 mb-6">
-                  {/* <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-                    <Activity className="w-5 h-5 text-primary-foreground" />
-                  </div> */}
                   <div className="flex justify-center mb-4">
                     <img
                       src="images/logo/logo.png"
@@ -63,12 +60,6 @@ export default function Header() {
                       className="h-20 w-auto object-contain"
                     />
                   </div>
-                  {/* <div>
-                    <h2 className="font-bold">Jash Physio</h2>
-                    <p className="text-xs text-muted-foreground">
-                      Patient Management
-                    </p>
-                  </div> */}
                 </div>
                 <nav className="flex-1 space-y-2">
                   {navItems.map((item) => (
@@ -114,28 +105,19 @@ export default function Header() {
 
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
-            {/* <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-              <Activity className="w-5 h-5 text-primary-foreground" />
-            </div> */}
-            <div className="flex justify-center mb-4">
-              <img
-                src="images/logo/logo.png"
-                alt="Jash Physiotherapy Logo"
-                className="h-[4rem] object-contain"
-              />
-            </div>
+            <img
+              src="images/logo/logo.png"
+              alt="Jash Physiotherapy Logo"
+              className="h-[4rem] sm:h-[3rem] object-contain"
+            />
 
             <div className="hidden sm:block">
-              {/* <h1 className="font-bold text-lg">Jash Physiotherapy</h1>
-              <p className="text-xs text-muted-foreground">
-                Patient Management
-              </p> */}
             </div>
           </Link>
         </div>
 
         {/* Desktop Navigation */}
-        <nav className="hidden lg:flex items-center gap-2">
+        <nav className="hidden md:flex items-center gap-2">
           {navItems.map((item) => (
             <Link key={item.path} to={item.path}>
               <Button
@@ -143,17 +125,17 @@ export default function Header() {
                 className="gap-2"
               >
                 <item.icon className="w-4 h-4" />
-                {item.label}
+                <span className="hidden md:inline">{item.label}</span>
               </Button>
             </Link>
           ))}
         </nav>
 
-        {/* User Menu */}
+        {/* User Menu - Show on all screens */}
         {user && (
-          <div className="hidden lg:flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <NotificationBell />
-            <div className="text-right">
+            <div className="hidden sm:block text-right">
               <p className="font-semibold text-sm">{user.name}</p>
               <Badge variant="secondary" className="text-xs">
                 {user.role}
