@@ -190,8 +190,22 @@ export default function PatientDetailPage() {
   const saveTreatmentPlan = async () => {
     if (!patient || !id) return;
     try {
-      const electro = treatmentPlanForm.electroTherapy.split("\n");
-      const exercise = treatmentPlanForm.exerciseTherapy.split("\n\n\n");
+      // Clean up electro therapy: remove extra newlines and empty lines
+      const electro = treatmentPlanForm.electroTherapy
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+
+      // Clean up exercise therapy: remove extra newlines (that would create empty boxes)
+      // First clean each block, then filter out empty blocks
+      const exercise = treatmentPlanForm.exerciseTherapy
+        .split("\n\n\n")
+        .map((block) =>
+          block
+            .replace(/\n\s*\n/g, "\n") // Replace multiple newlines with single newline
+            .trim(),
+        )
+        .filter((block) => block.length > 0);
 
       await updatePatient(id, {
         treatmentPlan: {
@@ -229,9 +243,19 @@ export default function PatientDetailPage() {
     if (!patient || !id || !newExerciseText.trim()) return;
     try {
       const existingExercises = patient.treatmentPlan?.exerciseTherapy || [];
-      // Simply prepend the new exercise text as a new block
-      // No automatic date headers or bullet points
-      const newExercises = [newExerciseText.trim(), ...existingExercises];
+
+      // Clean up input: remove extra newlines (that would create empty boxes)
+      // Replace multiple newlines with single newline, trim whitespace
+      const cleanedExercise = newExerciseText
+        .replace(/\n\s*\n/g, "\n") // Replace multiple newlines with single newline
+        .trim();
+
+      // Clean up existing exercises too (remove any empty blocks)
+      const cleanedExistingExercises = existingExercises.filter(
+        (exercise) => exercise.trim().length > 0,
+      );
+
+      const newExercises = [cleanedExercise, ...cleanedExistingExercises];
 
       await updatePatient(id, {
         treatmentPlan: {
@@ -1329,22 +1353,26 @@ export default function PatientDetailPage() {
                   </Button>
                 </div>
                 <div className="space-y-4 max-h-[350px] overflow-y-auto">
-                  {patient.treatmentPlan?.exerciseTherapy?.length ? (
-                    patient.treatmentPlan.exerciseTherapy.map(
-                      (exercise, index) => (
+                  {(() => {
+                    const nonEmptyExercises = (
+                      patient.treatmentPlan?.exerciseTherapy || []
+                    ).filter((exercise) => exercise.trim().length > 0);
+
+                    return nonEmptyExercises.length ? (
+                      nonEmptyExercises.map((exercise, index) => (
                         <div
                           key={index}
                           className="whitespace-pre-wrap text-sm border rounded-md p-3 bg-slate-50"
                         >
                           {exercise}
                         </div>
-                      ),
-                    )
-                  ) : (
-                    <div className="text-sm text-muted-foreground p-3 border rounded-md bg-slate-50">
-                      —
-                    </div>
-                  )}
+                      ))
+                    ) : (
+                      <div className="text-sm text-muted-foreground p-3 border rounded-md bg-slate-50">
+                        —
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
