@@ -1053,14 +1053,14 @@ export default function PatientDetailPage() {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle>Paid Sessions</CardTitle>
             <div className="flex gap-1">
-              <Button
+              {/* <Button
                 variant="ghost"
                 size="icon"
                 onClick={openRenewPaidDays}
                 title="Renew Session"
               >
                 <Plus className="w-4 h-4" />
-              </Button>
+              </Button> */}
               <Button
                 variant="ghost"
                 size="icon"
@@ -1175,7 +1175,7 @@ export default function PatientDetailPage() {
               if (patient.paidDays && currentSessionCount >= patient.paidDays) {
                 return (
                   <Badge variant="destructive" className="ml-2">
-                    Locked (Limit Reached)
+                    Limit Reached
                   </Badge>
                 );
               }

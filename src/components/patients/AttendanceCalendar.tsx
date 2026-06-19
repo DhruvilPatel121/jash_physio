@@ -50,16 +50,11 @@ export function AttendanceCalendar({
   const handleDayClick = (date: Date) => {
     const dateKey = format(date, "yyyy-MM-dd");
     const isArchived = archivedDates.includes(dateKey);
-    const hasStatus = !!attendance[dateKey];
 
-    // 1) Archived dates are ALWAYS locked
+    // Archived dates are ALWAYS locked
     if (isArchived) return;
 
-    // 2) If the session limit is reached (isLocked), we ONLY allow clicking
-    //    on days that already have a status (to allow fixing mistakes/unmarking).
-    //    We prevent clicking on NEW (empty) days.
-    if (isLocked && !hasStatus) return;
-
+    // Always allow clicking on days (no session limit lock)
     setSelectedDate(date);
     setIsDialogOpen(true);
   };
@@ -164,12 +159,6 @@ export function AttendanceCalendar({
                 ] === "present" && "bg-green-600 hover:bg-green-700",
               )}
               onClick={() => handleStatusSelect("present")}
-              disabled={
-                isLocked &&
-                attendance[
-                  selectedDate ? format(selectedDate, "yyyy-MM-dd") : ""
-                ] !== "present"
-              }
             >
               <Check className="w-8 h-8" />
               <span>Present</span>
