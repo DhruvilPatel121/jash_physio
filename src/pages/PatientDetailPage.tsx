@@ -182,7 +182,7 @@ export default function PatientDetailPage() {
     setTreatmentPlanForm({
       electroTherapy: patient?.treatmentPlan?.electroTherapy?.join("\n") || "",
       exerciseTherapy:
-        patient?.treatmentPlan?.exerciseTherapy?.join("\n\n\n") || "",
+        patient?.treatmentPlan?.exerciseTherapy?.join("\n") || "",
     });
     setEditTreatmentPlanOpen(true);
   };
@@ -196,21 +196,19 @@ export default function PatientDetailPage() {
         .map((line) => line.trim())
         .filter((line) => line.length > 0);
 
-      // Clean up exercise therapy: remove extra newlines (that would create empty boxes)
-      // First clean each block, then filter out empty blocks
+      // Clean up exercise therapy: treat as single block with newlines (like add exercise)
+      // Replace multiple newlines with single newline, trim whitespace
       const exercise = treatmentPlanForm.exerciseTherapy
-        .split("\n\n\n")
-        .map((block) =>
-          block
-            .replace(/\n\s*\n/g, "\n") // Replace multiple newlines with single newline
-            .trim(),
-        )
-        .filter((block) => block.length > 0);
+        .replace(/\n\s*\n/g, "\n") // Replace multiple newlines with single newline
+        .trim();
+
+      // Only include exercise if it's not empty
+      const exerciseArray = exercise.length > 0 ? [exercise] : [];
 
       await updatePatient(id, {
         treatmentPlan: {
           electroTherapy: electro,
-          exerciseTherapy: exercise,
+          exerciseTherapy: exerciseArray,
         },
       });
 
@@ -219,7 +217,7 @@ export default function PatientDetailPage() {
         ...patient,
         treatmentPlan: {
           electroTherapy: electro,
-          exerciseTherapy: exercise,
+          exerciseTherapy: exerciseArray,
         },
       });
 

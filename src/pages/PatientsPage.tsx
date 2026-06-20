@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, memo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -45,10 +45,154 @@ function patientMatchesDate(patient: Patient, targetDateStr: string) {
 
   const hasVisitedOnDate =
     patient.attendance?.[targetDateStr] === "present" ||
-    patient.attendance?.[targetDateStr] === "consulting";
+    patient.attendance?.[targetDateStr] === "absent";
 
   return isCreatedOnDate || hasVisitedOnDate;
 }
+
+// Memoized patient card component to prevent unnecessary re-renders
+const PatientCard = memo(function PatientCard({
+  patient,
+  patientNumber,
+  latestCaseNote,
+  debouncedSearch,
+  selectedDate,
+  onClick,
+}: {
+  patient: Patient;
+  patientNumber: number;
+  latestCaseNote?: CaseNote;
+  debouncedSearch: string;
+  selectedDate?: Date;
+  onClick: () => void;
+}) {
+  return (
+    <Card
+      className="cursor-pointer hover:shadow-md transition-shadow"
+      onClick={onClick}
+    >
+      <CardHeader>
+        <div className="flex justify-between items-start">
+          <div>
+            <div className="flex items-center gap-3">
+              <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-sky-600 to-indigo-600 text-white font-semibold shadow-sm">
+                {patientNumber}
+              </div>
+              <div className="flex flex-col">
+                <CardTitle className="text-lg">
+                  <span
+                    dangerouslySetInnerHTML={{
+                      __html: highlightText(
+                        patient.fullName,
+                        debouncedSearch,
+                      ),
+                    }}
+                  />
+                </CardTitle>
+                {patient.createdAt && (
+                  <span className="text-xs text-muted-foreground font-normal">
+                    Created:{" "}
+                    {format(
+                      new Date(patient.createdAt),
+                      "dd/MM/yyyy",
+                    )}
+                  </span>
+                )}
+                {selectedDate &&
+                  (() => {
+                    const targetDateStr = format(
+                      selectedDate,
+                      "yyyy-MM-dd",
+                    );
+                    const isCreatedOnDate =
+                      !!patient.createdAt &&
+                      format(
+                        new Date(patient.createdAt),
+                        "yyyy-MM-dd",
+                      ) === targetDateStr;
+                    const hasVisitedOnDate =
+                      patient.attendance?.[targetDateStr] ===
+                        "present" ||
+                      patient.attendance?.[targetDateStr] ===
+                        "absent";
+
+                    return (
+                      <div className="flex gap-2 mt-1 flex-wrap">
+                        {isCreatedOnDate && (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                            New Patient
+                          </span>
+                        )}
+                        {hasVisitedOnDate && (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                            Visited
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
+              </div>
+            </div>
+            {patient.age && (
+              <Badge variant="secondary" className="mt-2">
+                {patient.age} years
+              </Badge>
+            )}
+          </div>
+          {patient.gender && (
+            <Badge variant="outline">{patient.gender}</Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <div className="space-y-1">
+          <div className="text-sm">
+            <span className="font-medium text-sky-700">
+              Complaint:
+            </span>{" "}
+            <span
+              className="text-muted-foreground line-clamp-2"
+              dangerouslySetInnerHTML={{
+                __html: highlightText(
+                  latestCaseNote?.complaint || patient.complaint || "—",
+                  debouncedSearch,
+                ),
+              }}
+            />
+          </div>
+          <div className="text-sm">
+            <span className="font-medium text-sky-700">
+              Diagnosis:
+            </span>{" "}
+            <span
+              className="text-muted-foreground line-clamp-2"
+              dangerouslySetInnerHTML={{
+                __html: highlightText(
+                  latestCaseNote?.diagnosis || patient.diagnosis || "—",
+                  debouncedSearch,
+                ),
+              }}
+            />
+          </div>
+          <div className="text-sm">
+            <span className="font-medium text-sky-700">
+              Rx plan:
+            </span>{" "}
+            <span className="text-muted-foreground line-clamp-2">
+              {"—"}
+            </span>
+          </div>
+        </div>
+        <div className="text-xs text-muted-foreground mt-2">
+          Updated on{" "}
+          {new Date(
+            patient.updatedAt || patient.createdAt,
+          ).toLocaleDateString("en-GB")}
+        </div>
+      </CardContent>
+    </Card>
+  );
+});
 
 export default function PatientsPage() {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -89,13 +233,13 @@ export default function PatientsPage() {
     { value: "not_taken", label: "Not Taken Treatment" },
   ];
 
-  const clearAllFilters = () => {
+  const clearAllFilters = useCallback(() => {
     setSearchTerm("");
     setSelectedMonth(format(new Date(), "MM"));
     setSelectedYear(format(new Date(), "yyyy"));
     setTreatmentFilter("all");
     setSelectedDate(undefined);
-  };
+  }, []);
 
   const years = useMemo(() => {
     const currentYear = new Date().getFullYear();
@@ -581,8 +725,48 @@ export default function PatientsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="space-y-6 max-w-7xl mx-auto">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 flex-1">
+            <div className="h-8 w-48 bg-muted animate-pulse rounded mb-2" />
+            <div className="h-4 w-64 bg-muted animate-pulse rounded" />
+          </div>
+          <div className="flex w-full shrink-0 gap-2 sm:w-auto">
+            <div className="h-10 w-32 bg-muted animate-pulse rounded" />
+            <div className="h-10 w-32 bg-muted animate-pulse rounded" />
+          </div>
+        </div>
+        <Card>
+          <CardHeader className="space-y-4">
+            <div className="h-10 w-full bg-muted animate-pulse rounded" />
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:flex lg:flex-wrap lg:items-center">
+              <div className="h-10 w-32 bg-muted animate-pulse rounded" />
+              <div className="h-10 w-24 bg-muted animate-pulse rounded" />
+              <div className="h-10 w-48 bg-muted animate-pulse rounded" />
+              <div className="h-10 w-40 bg-muted animate-pulse rounded" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="border rounded-lg p-4 space-y-3">
+                  <div className="flex gap-3">
+                    <div className="h-8 w-8 bg-muted animate-pulse rounded-full" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-5 w-3/4 bg-muted animate-pulse rounded" />
+                      <div className="h-3 w-1/2 bg-muted animate-pulse rounded" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="h-4 w-full bg-muted animate-pulse rounded" />
+                    <div className="h-4 w-2/3 bg-muted animate-pulse rounded" />
+                    <div className="h-4 w-1/2 bg-muted animate-pulse rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -798,138 +982,15 @@ export default function PatientsPage() {
           ) : (
             <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
               {filteredPatients.map((patient) => (
-                <Card
+                <PatientCard
                   key={patient.id}
-                  className="cursor-pointer hover:shadow-md transition-shadow"
+                  patient={patient}
+                  patientNumber={patientNumberMap.get(patient.id as string) || 0}
+                  latestCaseNote={latestCaseNoteByPatient[patient.id]}
+                  debouncedSearch={debouncedSearch}
+                  selectedDate={selectedDate}
                   onClick={() => handlePatientClick(patient.id as string)}
-                >
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="flex items-center gap-3">
-                          <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-sky-600 to-indigo-600 text-white font-semibold shadow-sm">
-                            {patientNumberMap.get(patient.id as string)}
-                          </div>
-                          <div className="flex flex-col">
-                            <CardTitle className="text-lg">
-                              <span
-                                dangerouslySetInnerHTML={{
-                                  __html: highlightText(
-                                    patient.fullName,
-                                    debouncedSearch,
-                                  ),
-                                }}
-                              />
-                            </CardTitle>
-                            {patient.createdAt && (
-                              <span className="text-xs text-muted-foreground font-normal">
-                                Created:{" "}
-                                {format(
-                                  new Date(patient.createdAt),
-                                  "dd/MM/yyyy",
-                                )}
-                              </span>
-                            )}
-                            {selectedDate &&
-                              (() => {
-                                const targetDateStr = format(
-                                  selectedDate,
-                                  "yyyy-MM-dd",
-                                );
-                                const isCreatedOnDate =
-                                  !!patient.createdAt &&
-                                  format(
-                                    new Date(patient.createdAt),
-                                    "yyyy-MM-dd",
-                                  ) === targetDateStr;
-                                const hasVisitedOnDate =
-                                  patient.attendance?.[targetDateStr] ===
-                                    "present" ||
-                                  patient.attendance?.[targetDateStr] ===
-                                    "consulting";
-
-                                return (
-                                  <div className="flex gap-2 mt-1 flex-wrap">
-                                    {isCreatedOnDate && (
-                                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
-                                        New Patient
-                                      </span>
-                                    )}
-                                    {hasVisitedOnDate && (
-                                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-                                        Visited
-                                      </span>
-                                    )}
-                                  </div>
-                                );
-                              })()}
-                          </div>
-                        </div>
-                        {patient.age && (
-                          <Badge variant="secondary" className="mt-2">
-                            {patient.age} years
-                          </Badge>
-                        )}
-                      </div>
-                      {patient.gender && (
-                        <Badge variant="outline">{patient.gender}</Badge>
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {(() => {
-                      const note = latestCaseNoteByPatient[patient.id];
-
-                      return (
-                        <div className="space-y-1">
-                          <div className="text-sm">
-                            <span className="font-medium text-sky-700">
-                              Complaint:
-                            </span>{" "}
-                            <span
-                              className="text-muted-foreground line-clamp-2"
-                              dangerouslySetInnerHTML={{
-                                __html: highlightText(
-                                  note?.complaint || patient.complaint || "—",
-                                  debouncedSearch,
-                                ),
-                              }}
-                            />
-                          </div>
-                          <div className="text-sm">
-                            <span className="font-medium text-sky-700">
-                              Diagnosis:
-                            </span>{" "}
-                            <span
-                              className="text-muted-foreground line-clamp-2"
-                              dangerouslySetInnerHTML={{
-                                __html: highlightText(
-                                  note?.diagnosis || patient.diagnosis || "—",
-                                  debouncedSearch,
-                                ),
-                              }}
-                            />
-                          </div>
-                          <div className="text-sm">
-                            <span className="font-medium text-sky-700">
-                              Rx plan:
-                            </span>{" "}
-                            <span className="text-muted-foreground line-clamp-2">
-                              {/* Always show dash as requested, avoiding detailed treatment plan display */}
-                              {"—"}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })()}
-                    <div className="text-xs text-muted-foreground mt-2">
-                      Updated on{" "}
-                      {new Date(
-                        patient.updatedAt || patient.createdAt,
-                      ).toLocaleDateString("en-GB")}
-                    </div>
-                  </CardContent>
-                </Card>
+                />
               ))}
             </div>
           )}

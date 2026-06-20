@@ -134,10 +134,12 @@ export default function PatientFormPage() {
           : [""];
       }
       if (useExercise) {
-        // Preserving empty lines for spacing by just splitting on newline
-        treatmentPlan.exerciseTherapy = exerciseText
-          ? exerciseText.split("\n")
-          : [""];
+        // Treat as single block with newlines (like add exercise functionality)
+        // Replace multiple newlines with single newline, trim whitespace
+        const cleanedExercise = exerciseText
+          .replace(/\n\s*\n/g, "\n") // Replace multiple newlines with single newline
+          .trim();
+        treatmentPlan.exerciseTherapy = cleanedExercise.length > 0 ? [cleanedExercise] : [];
       }
 
       const assignedDoctor = doctors.find(
@@ -171,6 +173,7 @@ export default function PatientFormPage() {
           title: "Success",
           description: "Patient updated successfully",
         });
+        navigate(`/patients/${id}`);
       } else {
         await createPatient({
           ...(payload as any),
@@ -183,8 +186,8 @@ export default function PatientFormPage() {
           title: "Success",
           description: "Patient added successfully",
         });
+        navigate("/patients");
       }
-      navigate("/patients");
     } catch (error) {
       toast({
         title: "Error",
