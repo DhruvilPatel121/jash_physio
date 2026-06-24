@@ -38,15 +38,14 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Generate or retrieve a unique session ID for this tab/instance
-// We use sessionStorage so the ID persists through page refreshes
-// but is cleared when the tab is closed.
+// Generate or retrieve a unique session ID for this device/browser
+// We use localStorage so the ID persists across app sessions and browser restarts
 const getSessionId = () => {
-  let sessionId = sessionStorage.getItem("active_session_id");
+  let sessionId = localStorage.getItem("active_session_id");
   if (!sessionId) {
     sessionId =
       Math.random().toString(36).substring(2) + Date.now().toString(36);
-    sessionStorage.setItem("active_session_id", sessionId);
+    localStorage.setItem("active_session_id", sessionId);
   }
   return sessionId;
 };

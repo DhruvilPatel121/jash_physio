@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, memo, useCallback } from "react";
+import { useEffect, useMemo, useState, memo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -31,6 +31,7 @@ import {
   Download,
   Calendar as CalendarIcon,
   Activity,
+  ChevronUp,
 } from "lucide-react";
 import { useDebounce } from "@/hooks/use-debounce";
 import { format } from "date-fns";
@@ -209,6 +210,9 @@ export default function PatientsPage() {
   const [treatmentFilter, setTreatmentFilter] = useState<string>("all");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [scrollRestored, setScrollRestored] = useState(false);
+  const scrollRestorationRef = useRef(false);
   const navigate = useNavigate();
   const debouncedSearch = useDebounce(searchTerm, 300);
 
@@ -530,29 +534,64 @@ export default function PatientsPage() {
       setCaseNotes(notes);
     });
 
+    // Handle scroll events for scroll to top button
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 400);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+
     return () => {
       unsubscribePatients();
       unsubscribeNotes();
+      window.removeEventListener("scroll", handleScroll);
     };
   }, []);
 
-  // Restore scroll position when patients are loaded
+  // Restore filter state from sessionStorage if available
   useEffect(() => {
-    if (!loading) {
-      const savedPosition = sessionStorage.getItem("patients_scroll_pos");
-      if (savedPosition) {
-        // Small delay to ensure the grid is rendered
-        setTimeout(() => {
-          window.scrollTo({
-            top: parseInt(savedPosition, 10),
-            behavior: "instant",
-          });
-          // Clear after restoring
-          sessionStorage.removeItem("patients_scroll_pos");
-        }, 100);
+    const savedFilterState = sessionStorage.getItem("patients_filter_state");
+    if (savedFilterState) {
+      try {
+        const filterState = JSON.parse(savedFilterState);
+        setSearchTerm(filterState.searchTerm || "");
+        setSelectedMonth(filterState.selectedMonth || format(new Date(), "MM"));
+        setSelectedYear(filterState.selectedYear || format(new Date(), "yyyy"));
+        setTreatmentFilter(filterState.treatmentFilter || "all");
+        setSelectedDate(filterState.selectedDate ? new Date(filterState.selectedDate) : undefined);
+        // Clear after restoring
+        sessionStorage.removeItem("patients_filter_state");
+      } catch (e) {
+        console.error("Failed to restore filter state", e);
       }
     }
-  }, [loading]);
+  }, []);
+
+  // Restore scroll position after data and filters are loaded
+  useEffect(() => {
+    if (!loading && !scrollRestorationRef.current && filteredPatients.length > 0) {
+      const savedScrollPos = sessionStorage.getItem("patients_scroll_pos");
+      if (savedScrollPos) {
+        // Wait for both data and filters to be applied, then restore scroll
+        // Increased delay to ensure filtered grid is fully rendered
+        setTimeout(() => {
+          requestAnimationFrame(() => {
+            const scrollPosition = parseInt(savedScrollPos, 10);
+            window.scrollTo({
+              top: scrollPosition,
+              behavior: "instant",
+            });
+            sessionStorage.removeItem("patients_scroll_pos");
+            scrollRestorationRef.current = true;
+            setScrollRestored(true);
+          });
+        }, 1000);
+      } else {
+        scrollRestorationRef.current = true;
+        setScrollRestored(true);
+      }
+    }
+  }, [loading, filteredPatients.length]);
 
   // Build latest case note by patientId
   const latestCaseNoteByPatient = useMemo(() => {
@@ -774,6 +813,15 @@ export default function PatientsPage() {
   const handlePatientClick = (patientId: string) => {
     // Save scroll position before navigating
     sessionStorage.setItem("patients_scroll_pos", window.scrollY.toString());
+    // Save filter state before navigating
+    const filterState = {
+      searchTerm,
+      selectedMonth,
+      selectedYear,
+      treatmentFilter,
+      selectedDate: selectedDate ? selectedDate.toISOString() : null,
+    };
+    sessionStorage.setItem("patients_filter_state", JSON.stringify(filterState));
     navigate(`/patients/${patientId}?num=${patientNumberMap.get(patientId)}`);
   };
 
@@ -996,6 +1044,17 @@ export default function PatientsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Scroll to Top Button */}
+      {showScrollTop && (
+        <Button
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          className="fixed bottom-6 right-6 z-50 rounded-full w-12 h-12 shadow-lg"
+          size="icon"
+        >
+          <ChevronUp className="w-5 h-5" />
+        </Button>
+      )}
     </div>
   );
 }

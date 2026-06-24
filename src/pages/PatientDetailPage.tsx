@@ -127,6 +127,14 @@ export default function PatientDetailPage() {
   const [addExerciseDialogOpen, setAddExerciseDialogOpen] = useState(false);
   const [newExerciseText, setNewExerciseText] = useState("");
 
+  const [editExerciseDialogOpen, setEditExerciseDialogOpen] = useState(false);
+  const [editingExerciseIndex, setEditingExerciseIndex] = useState<number | null>(null);
+  const [editingExerciseText, setEditingExerciseText] = useState("");
+
+  const [editElectroDialogOpen, setEditElectroDialogOpen] = useState(false);
+  const [editingElectroIndex, setEditingElectroIndex] = useState<number | null>(null);
+  const [editingElectroText, setEditingElectroText] = useState("");
+
   const [editPaymentDetailsOpen, setEditPaymentDetailsOpen] = useState(false);
   const [paymentDetailsText, setPaymentDetailsText] = useState("");
 
@@ -271,11 +279,172 @@ export default function PatientDetailPage() {
       });
 
       setAddExerciseDialogOpen(false);
+      setNewExerciseText("");
       toast({ title: "Success", description: "Exercise added successfully" });
     } catch (e) {
       toast({
         title: "Error",
         description: "Failed to add exercise",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const openEditExercise = (index: number) => {
+    const exercises = patient?.treatmentPlan?.exerciseTherapy || [];
+    setEditingExerciseIndex(index);
+    setEditingExerciseText(exercises[index] || "");
+    setEditExerciseDialogOpen(true);
+  };
+
+  const saveEditedExercise = async () => {
+    if (!patient || !id || editingExerciseIndex === null || !editingExerciseText.trim()) return;
+    try {
+      const existingExercises = patient.treatmentPlan?.exerciseTherapy || [];
+
+      // Clean up input: remove extra newlines (that would create empty boxes)
+      const cleanedExercise = editingExerciseText
+        .replace(/\n\s*\n/g, "\n") // Replace multiple newlines with single newline
+        .trim();
+
+      // Update the specific exercise at the index
+      const updatedExercises = [...existingExercises];
+      updatedExercises[editingExerciseIndex] = cleanedExercise;
+
+      await updatePatient(id, {
+        treatmentPlan: {
+          ...(patient.treatmentPlan || {}),
+          exerciseTherapy: updatedExercises,
+        },
+      });
+
+      setPatient({
+        ...patient,
+        treatmentPlan: {
+          ...(patient.treatmentPlan || {}),
+          exerciseTherapy: updatedExercises,
+        },
+      });
+
+      setEditExerciseDialogOpen(false);
+      setEditingExerciseIndex(null);
+      setEditingExerciseText("");
+      toast({ title: "Success", description: "Exercise updated successfully" });
+    } catch (e) {
+      toast({
+        title: "Error",
+        description: "Failed to update exercise",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const deleteExercise = async (index: number) => {
+    if (!patient || !id) return;
+    try {
+      const existingExercises = patient.treatmentPlan?.exerciseTherapy || [];
+      const updatedExercises = existingExercises.filter((_, i) => i !== index);
+
+      await updatePatient(id, {
+        treatmentPlan: {
+          ...(patient.treatmentPlan || {}),
+          exerciseTherapy: updatedExercises,
+        },
+      });
+
+      setPatient({
+        ...patient,
+        treatmentPlan: {
+          ...(patient.treatmentPlan || {}),
+          exerciseTherapy: updatedExercises,
+        },
+      });
+
+      toast({ title: "Success", description: "Exercise deleted successfully" });
+    } catch (e) {
+      toast({
+        title: "Error",
+        description: "Failed to delete exercise",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const openEditElectro = (index: number) => {
+    const electroTherapies = patient?.treatmentPlan?.electroTherapy || [];
+    setEditingElectroIndex(index);
+    setEditingElectroText(electroTherapies[index] || "");
+    setEditElectroDialogOpen(true);
+  };
+
+  const saveEditedElectro = async () => {
+    if (!patient || !id || editingElectroIndex === null || !editingElectroText.trim()) return;
+    try {
+      const existingElectros = patient.treatmentPlan?.electroTherapy || [];
+
+      // Clean up input: remove extra newlines
+      const cleanedElectro = editingElectroText
+        .replace(/\n\s*\n/g, "\n") // Replace multiple newlines with single newline
+        .trim();
+
+      // Update the specific electro therapy at the index
+      const updatedElectros = [...existingElectros];
+      updatedElectros[editingElectroIndex] = cleanedElectro;
+
+      await updatePatient(id, {
+        treatmentPlan: {
+          ...(patient.treatmentPlan || {}),
+          electroTherapy: updatedElectros,
+        },
+      });
+
+      setPatient({
+        ...patient,
+        treatmentPlan: {
+          ...(patient.treatmentPlan || {}),
+          electroTherapy: updatedElectros,
+        },
+      });
+
+      setEditElectroDialogOpen(false);
+      setEditingElectroIndex(null);
+      setEditingElectroText("");
+      toast({ title: "Success", description: "Electro therapy updated successfully" });
+    } catch (e) {
+      toast({
+        title: "Error",
+        description: "Failed to update electro therapy",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const deleteElectro = async (index: number) => {
+    if (!patient || !id) return;
+    try {
+      const existingElectros = patient.treatmentPlan?.electroTherapy || [];
+      const updatedElectros = existingElectros.filter((_, i) => i !== index);
+
+      await updatePatient(id, {
+        treatmentPlan: {
+          ...(patient.treatmentPlan || {}),
+          electroTherapy: updatedElectros,
+        },
+      });
+
+      setPatient({
+        ...patient,
+        treatmentPlan: {
+          ...(patient.treatmentPlan || {}),
+          electroTherapy: updatedElectros,
+        },
+      });
+
+      toast({ title: "Success", description: "Electro therapy deleted successfully" });
+    } catch (e) {
+      toast({
+        title: "Error",
+        description: "Failed to delete electro therapy",
         variant: "destructive",
       });
     }
@@ -1314,30 +1483,65 @@ export default function PatientDetailPage() {
           className="rounded-xl border bg-white shadow-sm"
         >
           <AccordionTrigger className="px-5">
-            <div className="flex items-center justify-between w-full">
-              <span className="text-base font-semibold">Treatment Plan</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={(e) => {
-                  e.preventDefault();
-                  openEditTreatmentPlan();
-                }}
-              >
-                <Edit className="w-4 h-4" />
-              </Button>
-            </div>
+            <span className="text-base font-semibold">Treatment Plan</span>
           </AccordionTrigger>
           <AccordionContent>
             <div className="px-5 pb-5 space-y-6">
               <div>
-                <h4 className="font-semibold text-sm text-muted-foreground mb-2">
-                  Electro Therapy
-                </h4>
-                <div className="whitespace-pre-wrap text-sm border rounded-md p-3 bg-slate-50 min-h-[60px] max-h-[300px] overflow-y-auto">
-                  {patient.treatmentPlan?.electroTherapy?.length
-                    ? patient.treatmentPlan.electroTherapy.join("\n")
-                    : "—"}
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-semibold text-sm text-muted-foreground">
+                    Electro Therapy
+                  </h4>
+                  <Button variant="outline" size="sm" onClick={() => {
+                    setEditingElectroIndex(null);
+                    setEditingElectroText("");
+                    setEditElectroDialogOpen(true);
+                  }}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Electro
+                  </Button>
+                </div>
+                <div className="space-y-4 max-h-[350px] overflow-y-auto">
+                  {(() => {
+                    const nonEmptyElectros = (
+                      patient.treatmentPlan?.electroTherapy || []
+                    ).filter((electro) => electro.trim().length > 0);
+
+                    return nonEmptyElectros.length ? (
+                      nonEmptyElectros.map((electro, index) => (
+                        <div
+                          key={index}
+                          className="relative"
+                        >
+                          <div className="whitespace-pre-wrap text-sm border rounded-md p-3 bg-slate-50 pr-12">
+                            {electro}
+                          </div>
+                          <div className="absolute top-2 right-2 flex gap-1">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7"
+                              onClick={() => openEditElectro(index)}
+                            >
+                              <Edit className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 text-destructive hover:text-destructive"
+                              onClick={() => deleteElectro(index)}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-sm text-muted-foreground p-3 border rounded-md bg-slate-50">
+                        —
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
               <div>
@@ -1360,9 +1564,21 @@ export default function PatientDetailPage() {
                       nonEmptyExercises.map((exercise, index) => (
                         <div
                           key={index}
-                          className="whitespace-pre-wrap text-sm border rounded-md p-3 bg-slate-50"
+                          className="relative"
                         >
-                          {exercise}
+                          <div className="whitespace-pre-wrap text-sm border rounded-md p-3 bg-slate-50 pr-12">
+                            {exercise}
+                          </div>
+                          <div className="absolute top-2 right-2 flex gap-1">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7"
+                              onClick={() => openEditExercise(index)}
+                            >
+                              <Edit className="w-3 h-3" />
+                            </Button>
+                          </div>
                         </div>
                       ))
                     ) : (
@@ -1406,6 +1622,103 @@ export default function PatientDetailPage() {
               Cancel
             </Button>
             <Button onClick={saveNewExercise}>Add Exercise</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Exercise Dialog */}
+      <Dialog
+        open={editExerciseDialogOpen}
+        onOpenChange={setEditExerciseDialogOpen}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Exercise</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Exercise Details</Label>
+              <Textarea
+                value={editingExerciseText}
+                onChange={(e) => setEditingExerciseText(e.target.value)}
+                placeholder="Enter exercise details..."
+                rows={5}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditExerciseDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={saveEditedExercise}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Electro Dialog */}
+      <Dialog
+        open={editElectroDialogOpen}
+        onOpenChange={setEditElectroDialogOpen}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingElectroIndex === null ? "Add Electro Therapy" : "Edit Electro Therapy"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Electro Therapy Details</Label>
+              <Textarea
+                value={editingElectroText}
+                onChange={(e) => setEditingElectroText(e.target.value)}
+                placeholder="Enter electro therapy details..."
+                rows={5}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditElectroDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={editingElectroIndex === null ? async () => {
+              if (!patient || !id || !editingElectroText.trim()) return;
+              try {
+                const existingElectros = patient.treatmentPlan?.electroTherapy || [];
+                const cleanedElectro = editingElectroText
+                  .replace(/\n\s*\n/g, "\n")
+                  .trim();
+                const newElectros = [cleanedElectro, ...existingElectros];
+                await updatePatient(id, {
+                  treatmentPlan: {
+                    ...(patient.treatmentPlan || {}),
+                    electroTherapy: newElectros,
+                  },
+                });
+                setPatient({
+                  ...patient,
+                  treatmentPlan: {
+                    ...(patient.treatmentPlan || {}),
+                    electroTherapy: newElectros,
+                  },
+                });
+                setEditElectroDialogOpen(false);
+                setEditingElectroText("");
+                toast({ title: "Success", description: "Electro therapy added successfully" });
+              } catch (e) {
+                toast({
+                  title: "Error",
+                  description: "Failed to add electro therapy",
+                  variant: "destructive",
+                });
+              }
+            } : saveEditedElectro}>
+              {editingElectroIndex === null ? "Add" : "Save Changes"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
