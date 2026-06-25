@@ -40,17 +40,17 @@ export function formatDate(
 
 export function getCurrentSessionAttendanceCount(patient: any) {
   if (!patient || !patient.attendance) return 0;
-  
+
   const presentDates = Object.entries(patient.attendance)
-    .filter(([_, status]) => status === "present" || status === "consulting")
+    .filter(([_, status]) => status === "present")
     .map(([date, _]) => date);
-    
+
   const archivedDates = (patient.paymentHistory || [])
     .flatMap((h: any) => h.completedDates || []);
-    
+
   const archivedSet = new Set(archivedDates);
   const currentSessionDates = presentDates.filter(d => !archivedSet.has(d));
-  
+
   return currentSessionDates.length;
 }
 

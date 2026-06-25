@@ -256,6 +256,9 @@ export default function PatientDetailPage() {
         .replace(/\n\s*\n/g, "\n") // Replace multiple newlines with single newline
         .trim();
 
+      // Only add if not empty after cleaning
+      if (!cleanedExercise) return;
+
       // Clean up existing exercises too (remove any empty blocks)
       const cleanedExistingExercises = existingExercises.filter(
         (exercise) => exercise.trim().length > 0,
@@ -298,7 +301,7 @@ export default function PatientDetailPage() {
   };
 
   const saveEditedExercise = async () => {
-    if (!patient || !id || editingExerciseIndex === null || !editingExerciseText.trim()) return;
+    if (!patient || !id || editingExerciseIndex === null) return;
     try {
       const existingExercises = patient.treatmentPlan?.exerciseTherapy || [];
 
@@ -307,9 +310,14 @@ export default function PatientDetailPage() {
         .replace(/\n\s*\n/g, "\n") // Replace multiple newlines with single newline
         .trim();
 
-      // Update the specific exercise at the index
-      const updatedExercises = [...existingExercises];
-      updatedExercises[editingExerciseIndex] = cleanedExercise;
+      // If cleaned text is empty, remove the box instead of keeping it empty
+      let updatedExercises;
+      if (!cleanedExercise) {
+        updatedExercises = existingExercises.filter((_, i) => i !== editingExerciseIndex);
+      } else {
+        updatedExercises = [...existingExercises];
+        updatedExercises[editingExerciseIndex] = cleanedExercise;
+      }
 
       await updatePatient(id, {
         treatmentPlan: {
@@ -329,7 +337,7 @@ export default function PatientDetailPage() {
       setEditExerciseDialogOpen(false);
       setEditingExerciseIndex(null);
       setEditingExerciseText("");
-      toast({ title: "Success", description: "Exercise updated successfully" });
+      toast({ title: "Success", description: cleanedExercise ? "Exercise updated successfully" : "Exercise removed successfully" });
     } catch (e) {
       toast({
         title: "Error",
@@ -378,7 +386,7 @@ export default function PatientDetailPage() {
   };
 
   const saveEditedElectro = async () => {
-    if (!patient || !id || editingElectroIndex === null || !editingElectroText.trim()) return;
+    if (!patient || !id || editingElectroIndex === null) return;
     try {
       const existingElectros = patient.treatmentPlan?.electroTherapy || [];
 
@@ -387,9 +395,14 @@ export default function PatientDetailPage() {
         .replace(/\n\s*\n/g, "\n") // Replace multiple newlines with single newline
         .trim();
 
-      // Update the specific electro therapy at the index
-      const updatedElectros = [...existingElectros];
-      updatedElectros[editingElectroIndex] = cleanedElectro;
+      // If cleaned text is empty, remove the box instead of keeping it empty
+      let updatedElectros;
+      if (!cleanedElectro) {
+        updatedElectros = existingElectros.filter((_, i) => i !== editingElectroIndex);
+      } else {
+        updatedElectros = [...existingElectros];
+        updatedElectros[editingElectroIndex] = cleanedElectro;
+      }
 
       await updatePatient(id, {
         treatmentPlan: {
@@ -409,7 +422,7 @@ export default function PatientDetailPage() {
       setEditElectroDialogOpen(false);
       setEditingElectroIndex(null);
       setEditingElectroText("");
-      toast({ title: "Success", description: "Electro therapy updated successfully" });
+      toast({ title: "Success", description: cleanedElectro ? "Electro therapy updated successfully" : "Electro therapy removed successfully" });
     } catch (e) {
       toast({
         title: "Error",
@@ -1692,6 +1705,8 @@ export default function PatientDetailPage() {
                 const cleanedElectro = editingElectroText
                   .replace(/\n\s*\n/g, "\n")
                   .trim();
+                // Only add if not empty after cleaning
+                if (!cleanedElectro) return;
                 const newElectros = [cleanedElectro, ...existingElectros];
                 await updatePatient(id, {
                   treatmentPlan: {
