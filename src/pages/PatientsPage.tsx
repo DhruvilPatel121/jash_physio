@@ -44,11 +44,9 @@ function patientMatchesDate(patient: Patient, targetDateStr: string) {
     !!patient.createdAt &&
     format(new Date(patient.createdAt), "yyyy-MM-dd") === targetDateStr;
 
-  const hasVisitedOnDate =
-    patient.attendance?.[targetDateStr] === "present" ||
-    patient.attendance?.[targetDateStr] === "absent";
+  const hasPresentOnDate = patient.attendance?.[targetDateStr] === "present";
 
-  return isCreatedOnDate || hasVisitedOnDate;
+  return isCreatedOnDate || hasPresentOnDate;
 }
 
 // Memoized patient card component to prevent unnecessary re-renders
@@ -602,7 +600,7 @@ export default function PatientsPage() {
     return map;
   }, [caseNotes]);
 
-  // Calculate total patients per date (new registrations + present visits)
+  // Calculate total patients per date (new registrations + present visits only)
   const totalPatientsPerDate = useMemo(() => {
     const counts: Record<string, Set<string>> = {};
 
